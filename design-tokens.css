@@ -1,0 +1,18 @@
+:root {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --surface-2: #222222;
+    --surface-hover: #2e2e2e;
+    --text-primary: #ededed;
+    --text-muted: #888888;
+    --accent: #ededed;
+    --accent-hover: #ffffff;
+    --muted-border: #1f1f1f;
+    --muted-border-hover: #333333;
+    --danger: #ff4444;
+    --focus: rgba(255, 255, 255, 0.08);
+    --shadow: rgba(0, 0, 0, 0.8);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --space-1: 8px;
+}
