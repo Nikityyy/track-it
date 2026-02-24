@@ -1,5 +1,7 @@
 # Track It!
 
+![Banner](icons/banner.png)
+
 Simpler Workout-Tracker für mich :D
 
 ## Features
