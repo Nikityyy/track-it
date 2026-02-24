@@ -1,26 +1,26 @@
 const CACHE_NAME = 'trackit-cache';
 
 const PRECACHE_URLS = [
-    '/',
-    '/index.html',
-    '/design-tokens.css',
-    '/css/styles.css',
-    '/js/db.js',
-    '/js/utils.js',
-    '/js/markdown.js',
-    '/js/app.js',
-    '/js/components/icons.js',
-    '/js/components/header.js',
-    '/js/components/toast.js',
-    '/js/components/modal.js',
-    '/js/pages/home.js',
-    '/js/pages/history.js',
-    '/js/pages/workout-detail.js',
-    '/js/pages/create-workout.js',
-    '/js/pages/settings.js',
-    '/manifest.json',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png'
+    './',
+    './index.html',
+    './design-tokens.css',
+    './css/styles.css',
+    './js/db.js',
+    './js/utils.js',
+    './js/markdown.js',
+    './js/app.js',
+    './js/components/icons.js',
+    './js/components/header.js',
+    './js/components/toast.js',
+    './js/components/modal.js',
+    './js/pages/home.js',
+    './js/pages/history.js',
+    './js/pages/workout-detail.js',
+    './js/pages/create-workout.js',
+    './js/pages/settings.js',
+    './manifest.json',
+    './icons/icon-192.png',
+    './icons/icon-512.png'
 ];
 
 // Install — precache
@@ -67,7 +67,7 @@ self.addEventListener('fetch', (e) => {
                 if (cached) return cached;
                 // Fallback for navigation requests
                 if (e.request.mode === 'navigate') {
-                    return caches.match('/index.html');
+                    return caches.match('./index.html');
                 }
                 // Must return a Response object to avoid undefined promise rejection
                 return Response.error();
