@@ -183,6 +183,36 @@ async function importAllData(data) {
   if (data.workoutTypes) {
     for (const t of data.workoutTypes) await dbPut(STORES.workoutTypes, t);
   }
-  // Import workouts
-  for (const w of data.workouts) await dbPut(STORES.workouts, w);
+  // Import workouts with migration
+  for (const w of data.workouts) {
+    migrateWorkout(w);
+    await dbPut(STORES.workouts, w);
+  }
 }
+
+function migrateWorkout(w) {
+  // Ensure exercises have skipped field on sets
+  if (w.exercises) {
+    for (const ex of w.exercises) {
+      if (!ex.sets) ex.sets = [];
+      for (const set of ex.sets) {
+        if (set.skipped === undefined) set.skipped = false;
+      }
+      if (!ex.mode) ex.mode = 'normal';
+    }
+  }
+  // Ensure finisher has name and entries with skipped
+  if (w.finisher) {
+    if (w.finisher.name === undefined) w.finisher.name = '';
+    if (w.finisher.entries) {
+      for (const entry of w.finisher.entries) {
+        if (entry.skipped === undefined) entry.skipped = false;
+        if (!entry.sets) entry.sets = [];
+        for (const set of entry.sets) {
+          if (set.skipped === undefined) set.skipped = false;
+        }
+      }
+    }
+  }
+}
+

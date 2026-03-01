@@ -14,7 +14,7 @@ async function renderWorkoutDetailPage(params) {
     return;
   }
 
-  // Calculate average RPE
+  // Calculate average RPE (excluding skipped)
   let totalRpe = 0;
   let totalSets = 0;
 
@@ -22,6 +22,7 @@ async function renderWorkoutDetailPage(params) {
     workout.exercises.forEach(ex => {
       if (ex.sets && ex.sets.length) {
         ex.sets.forEach(s => {
+          if (s.skipped) return;
           totalRpe += Number(s.rpe) || 0;
           totalSets++;
         });
@@ -31,8 +32,10 @@ async function renderWorkoutDetailPage(params) {
 
   if (workout.finisher && workout.finisher.entries) {
     workout.finisher.entries.forEach(entry => {
+      if (entry.skipped) return;
       if (workout.finisher.type === 'NORMAL' && entry.sets) {
         entry.sets.forEach(s => {
+          if (s.skipped) return;
           totalRpe += Number(s.rpe) || 0;
           totalSets++;
         });
@@ -54,11 +57,14 @@ async function renderWorkoutDetailPage(params) {
       </div>
       <div class="detail-sets">
         ${ex.sets.map(s => `
-          <div class="detail-set-row">
+          <div class="detail-set-row${s.skipped ? ' detail-skipped' : ''}">
             <span class="detail-set-label">${escapeHtml(s.label)}</span>
-            <span class="detail-set-reps">${s.reps} Wdh</span>
-            <span class="detail-set-rpe">RPE ${s.rpe}</span>
-            ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}
+            ${s.skipped
+      ? `<span class="detail-set-reps skipped-text">Übersprungen</span>`
+      : `<span class="detail-set-reps">${s.reps} Wdh</span>
+                 <span class="detail-set-rpe">RPE ${s.rpe}</span>
+                 ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}`
+    }
           </div>
         `).join('')}
       </div>
@@ -69,20 +75,24 @@ async function renderWorkoutDetailPage(params) {
   let finisherHtml = '';
   if (workout.finisher && workout.finisher.type) {
     const fin = workout.finisher;
+    const finTitle = fin.name ? escapeHtml(fin.name) : `Finisher (${escapeHtml(fin.type)})`;
     finisherHtml = `
       <div class="section">
-        <h3 class="section-title">Finisher (${escapeHtml(fin.type)})</h3>
+        <h3 class="section-title">${finTitle}</h3>
         ${fin.entries.map(entry => `
-          <div class="card detail-exercise">
-            <h4 class="detail-exercise-name">${escapeHtml(entry.name || 'Unbenannt')}</h4>
-            ${fin.type === 'NORMAL' && entry.sets && entry.sets.length > 0 ? `
+          <div class="card detail-exercise${entry.skipped ? ' detail-skipped-card' : ''}">
+            <h4 class="detail-exercise-name">${escapeHtml(entry.name || 'Unbenannt')}${entry.skipped ? ' <span class="badge badge-skipped">Übersprungen</span>' : ''}</h4>
+            ${entry.skipped ? '' : (fin.type === 'NORMAL' && entry.sets && entry.sets.length > 0 ? `
               <div class="detail-sets">
                 ${entry.sets.map(s => `
-                  <div class="detail-set-row">
+                  <div class="detail-set-row${s.skipped ? ' detail-skipped' : ''}">
                     <span class="detail-set-label">${escapeHtml(s.label)}</span>
-                    <span class="detail-set-reps">${s.reps} Wdh</span>
-                    <span class="detail-set-rpe">RPE ${s.rpe}</span>
-                    ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}
+                    ${s.skipped
+        ? `<span class="detail-set-reps skipped-text">Übersprungen</span>`
+        : `<span class="detail-set-reps">${s.reps} Wdh</span>
+                         <span class="detail-set-rpe">RPE ${s.rpe}</span>
+                         ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}`
+      }
                   </div>
                 `).join('')}
               </div>
@@ -95,7 +105,7 @@ async function renderWorkoutDetailPage(params) {
                 </div>
                 ${entry.note ? `<div class="detail-set-row"><span class="detail-set-label">Notiz</span><span class="detail-set-note">${escapeHtml(entry.note)}</span></div>` : ''}
               </div>
-            `}
+            `)}
           </div>
         `).join('')}
       </div>

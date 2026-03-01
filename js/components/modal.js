@@ -1,4 +1,8 @@
 function showModal({ title, body, confirmText, cancelText, onConfirm, danger }) {
+  // Prevent duplicate modals
+  const existing = document.querySelector('.modal-overlay');
+  if (existing) existing.remove();
+
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.setAttribute('role', 'dialog');
@@ -22,21 +26,30 @@ function showModal({ title, body, confirmText, cancelText, onConfirm, danger }) 
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('modal-overlay--visible'));
 
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
     overlay.classList.remove('modal-overlay--visible');
-    overlay.addEventListener('transitionend', () => overlay.remove());
+    // Reliable removal — don't rely solely on transitionend
+    const fallback = setTimeout(() => overlay.remove(), 200);
+    overlay.addEventListener('transitionend', () => {
+      clearTimeout(fallback);
+      overlay.remove();
+    }, { once: true });
   };
 
   overlay.querySelector('.modal-close').addEventListener('click', close);
   overlay.querySelector('.modal-cancel').addEventListener('click', close);
   overlay.querySelector('.modal-confirm').addEventListener('click', () => {
-    close();
+    // Grab any data from the modal BEFORE closing/removing it
     if (onConfirm) onConfirm();
+    close();
   });
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) close();
   });
 
-  // Focus trap — focus confirm
+  // Focus confirm
   overlay.querySelector('.modal-confirm').focus();
 }

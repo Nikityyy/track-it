@@ -97,6 +97,7 @@ function renderWorkoutForm(workout, types, isEdit) {
           <div id="exercises-container">
             ${workout.exercises.map((ex, i) => renderExerciseCard(ex, i)).join('')}
           </div>
+          <button type="button" class="btn btn-ghost btn-sm w-full mt-2" id="add-exercise-bottom">${icon('plus', 14)} Übung hinzufügen</button>
         </div>
 
         <!-- Finisher -->
@@ -158,23 +159,27 @@ function renderSetRow(set, index) {
   else if (set.label.includes('rechts')) sideStr = 'R';
   let match = set.label.match(/\d+/);
   let numStr = match ? match[0] : (index + 1);
+  const isSkipped = set.skipped || false;
 
   return `
-    <div class="set-row" data-set-id="${set.setId}" data-index="${index}">
+    <div class="set-row${isSkipped ? ' skipped' : ''}" data-set-id="${set.setId}" data-index="${index}">
       <div class="set-label" data-raw-label="${escapeHtml(set.label)}">
         <div class="set-badge">${numStr}${sideStr ? `<div class="side">${sideStr}</div>` : ''}</div>
       </div>
       <div class="stepper stepper-sm stepper-minimal">
-        <button type="button" class="stepper__btn stepper-dec" data-target="reps" aria-label="Weniger">−</button>
-        <input type="number" class="stepper__input set-reps" value="${set.reps}" min="0" aria-label="Wiederholungen">
-        <button type="button" class="stepper__btn stepper-inc" data-target="reps" aria-label="Mehr">+</button>
+        <button type="button" class="stepper__btn stepper-dec" data-target="reps" aria-label="Weniger"${isSkipped ? ' disabled' : ''}>−</button>
+        <input type="number" class="stepper__input set-reps" value="${set.reps}" min="0" aria-label="Wiederholungen"${isSkipped ? ' disabled' : ''}>
+        <button type="button" class="stepper__btn stepper-inc" data-target="reps" aria-label="Mehr"${isSkipped ? ' disabled' : ''}>+</button>
       </div>
       <div class="stepper stepper-sm stepper-minimal">
-        <button type="button" class="stepper__btn stepper-dec" data-target="rpe" aria-label="Weniger">−</button>
-        <input type="number" class="stepper__input set-rpe" value="${set.rpe}" min="1" max="10" aria-label="RPE">
-        <button type="button" class="stepper__btn stepper-inc" data-target="rpe" aria-label="Mehr">+</button>
+        <button type="button" class="stepper__btn stepper-dec" data-target="rpe" aria-label="Weniger"${isSkipped ? ' disabled' : ''}>−</button>
+        <input type="number" class="stepper__input set-rpe" value="${set.rpe}" min="1" max="10" aria-label="RPE"${isSkipped ? ' disabled' : ''}>
+        <button type="button" class="stepper__btn stepper-inc" data-target="rpe" aria-label="Mehr"${isSkipped ? ' disabled' : ''}>+</button>
       </div>
       <div class="set-actions">
+        <button type="button" class="btn-icon skip-btn${isSkipped ? ' active' : ''}" aria-label="Überspringen" title="Überspringen">
+          ${icon('skipForward', 14)}
+        </button>
         <button type="button" class="btn-icon set-note-btn ${set.note ? 'has-note' : ''}" aria-label="Notiz">
           ${icon('fileText', 14)}
         </button>
@@ -188,9 +193,14 @@ function renderSetRow(set, index) {
 function renderFinisherBlock(finisher) {
   const type = finisher.type || 'AMRAP';
   const entries = finisher.entries || [createEmptyFinisherEntry()];
+  const fName = finisher.name || '';
 
   return `
     <div class="finisher-block" data-finisher-type="${type}">
+      <div class="form-row">
+        <label class="form-label">Finisher-Name</label>
+        <input type="text" class="input" id="finisher-name-input" value="${escapeHtml(fName)}" placeholder="z. B. Kardio-Finisher" aria-label="Finisher Name">
+      </div>
       <div class="form-row">
         <label class="form-label">Finisher-Typ</label>
         <div class="finisher-type-toggle">
@@ -202,18 +212,23 @@ function renderFinisherBlock(finisher) {
       <div id="finisher-entries">
         ${entries.map((entry, i) => renderFinisherEntry(entry, i, type)).join('')}
       </div>
-      <button type="button" class="btn btn-ghost btn-sm" id="add-finisher-entry">${icon('plus', 14)} Eintrag hinzufügen</button>
+      <button type="button" class="btn btn-ghost btn-sm w-full mt-2" id="add-finisher-entry">${icon('plus', 14)} Übung hinzufügen</button>
     </div>
   `;
 }
 
 function renderFinisherEntry(entry, index, type) {
+  const isSkipped = entry.skipped || false;
+
   if (type === 'NORMAL') {
-    const sets = entry.sets && entry.sets.length > 0 ? entry.sets : [{ setId: uuid(), label: 'Satz 1', reps: 0, rpe: 5, note: '' }];
+    const sets = entry.sets && entry.sets.length > 0 ? entry.sets : [{ setId: uuid(), label: 'Satz 1', reps: 0, rpe: 5, note: '', skipped: false }];
     return `
-      <div class="card finisher-entry" data-entry-id="${entry.id}" data-index="${index}">
+      <div class="card finisher-entry${isSkipped ? ' skipped' : ''}" data-entry-id="${entry.id}" data-index="${index}">
         <div class="finisher-entry-header">
-          <input type="text" class="input finisher-entry-name" value="${escapeHtml(entry.name)}" placeholder="Übungsname" aria-label="Finisher Name">
+          <input type="text" class="input finisher-entry-name" value="${escapeHtml(entry.name)}" placeholder="Übungsname" aria-label="Finisher Name"${isSkipped ? ' disabled' : ''}>
+          <button type="button" class="btn-icon skip-btn finisher-skip-btn${isSkipped ? ' active' : ''}" aria-label="Überspringen" title="Überspringen">
+            ${icon('skipForward', 14)}
+          </button>
           <button type="button" class="btn-icon btn-danger-icon remove-finisher-entry" aria-label="Eintrag entfernen">${icon('trash', 16)}</button>
         </div>
         <div class="sets-header">
@@ -232,22 +247,25 @@ function renderFinisherEntry(entry, index, type) {
 
   // AMRAP / EMOM
   return `
-    <div class="card finisher-entry" data-entry-id="${entry.id}" data-index="${index}">
+    <div class="card finisher-entry${isSkipped ? ' skipped' : ''}" data-entry-id="${entry.id}" data-index="${index}">
       <div class="finisher-entry-header">
-        <input type="text" class="input finisher-entry-name" value="${escapeHtml(entry.name)}" placeholder="Übungsname" aria-label="Finisher Name">
+        <input type="text" class="input finisher-entry-name" value="${escapeHtml(entry.name)}" placeholder="Übungsname" aria-label="Finisher Name"${isSkipped ? ' disabled' : ''}>
+        <button type="button" class="btn-icon skip-btn finisher-skip-btn${isSkipped ? ' active' : ''}" aria-label="Überspringen" title="Überspringen">
+          ${icon('skipForward', 14)}
+        </button>
         <button type="button" class="btn-icon btn-danger-icon remove-finisher-entry" aria-label="Eintrag entfernen">${icon('trash', 16)}</button>
       </div>
       <div class="amrap-grid">
         <div class="amrap-col">
           <label class="set-field-label">Ergebnis</label>
-          <input type="text" class="input input-sm finisher-result" value="${escapeHtml(entry.result || '')}" placeholder="z. B. 40 Wdh" aria-label="Ergebnis">
+          <input type="text" class="input input-sm finisher-result" value="${escapeHtml(entry.result || '')}" placeholder="z. B. 40 Wdh" aria-label="Ergebnis"${isSkipped ? ' disabled' : ''}>
         </div>
         <div class="amrap-col">
           <label class="set-field-label">RPE</label>
           <div class="stepper stepper-sm">
-            <button type="button" class="stepper__btn stepper-dec" data-target="frpe" aria-label="Weniger">−</button>
-            <input type="number" class="stepper__input finisher-rpe" value="${entry.rpe}" min="1" max="10" aria-label="RPE">
-            <button type="button" class="stepper__btn stepper-inc" data-target="frpe" aria-label="Mehr">+</button>
+            <button type="button" class="stepper__btn stepper-dec" data-target="frpe" aria-label="Weniger"${isSkipped ? ' disabled' : ''}>−</button>
+            <input type="number" class="stepper__input finisher-rpe" value="${entry.rpe}" min="1" max="10" aria-label="RPE"${isSkipped ? ' disabled' : ''}>
+            <button type="button" class="stepper__btn stepper-inc" data-target="frpe" aria-label="Mehr"${isSkipped ? ' disabled' : ''}>+</button>
           </div>
         </div>
         <div class="amrap-action">
@@ -261,6 +279,52 @@ function renderFinisherEntry(entry, index, type) {
   `;
 }
 
+function handleNoteClick(noteBtn) {
+  const hiddenInput = noteBtn.parentElement.querySelector('input[type="hidden"]') ||
+    noteBtn.nextElementSibling;
+  if (!hiddenInput) return;
+  const currentVal = hiddenInput.value || '';
+  const bodyHtml = `<textarea id="edit-note-textarea" class="input" rows="4" style="resize: none; width: 100%;" placeholder="Notiz eingeben...">${escapeHtml(currentVal)}</textarea>`;
+
+  showModal({
+    title: 'Notiz',
+    body: bodyHtml,
+    confirmText: 'Speichern',
+    cancelText: 'Abbrechen',
+    onConfirm: () => {
+      const ta = document.getElementById('edit-note-textarea');
+      if (ta) {
+        const newVal = ta.value;
+        hiddenInput.value = newVal;
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        noteBtn.classList.toggle('has-note', !!newVal);
+      }
+    }
+  });
+  // Focus textarea
+  setTimeout(() => {
+    const ta = document.getElementById('edit-note-textarea');
+    if (ta) {
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+  }, 50);
+}
+
+function handleSkipToggle(skipBtn) {
+  const row = skipBtn.closest('.set-row') || skipBtn.closest('.finisher-entry');
+  if (!row) return;
+  const isNowSkipped = !row.classList.contains('skipped');
+  row.classList.toggle('skipped', isNowSkipped);
+  skipBtn.classList.toggle('active', isNowSkipped);
+
+  // Disable/enable inputs in the row
+  row.querySelectorAll('input:not([type="hidden"]), .stepper__btn').forEach(el => {
+    if (el.classList.contains('skip-btn') || el.classList.contains('finisher-skip-btn')) return;
+    el.disabled = isNowSkipped;
+  });
+}
+
 function bindFormEvents(workout) {
   const form = document.getElementById('workout-form');
   if (!form) return;
@@ -272,55 +336,41 @@ function bindFormEvents(workout) {
     nameInput.value = generateWorkoutName(typeSelect.value);
   });
 
-  // Add exercise
-  document.getElementById('add-exercise').addEventListener('click', () => {
+  // Add exercise (top + bottom)
+  const addExercise = () => {
     const container = document.getElementById('exercises-container');
     const newEx = createEmptyExercise();
     const index = container.children.length;
     container.insertAdjacentHTML('beforeend', renderExerciseCard(newEx, index));
-  });
+  };
+  document.getElementById('add-exercise').addEventListener('click', addExercise);
+  document.getElementById('add-exercise-bottom').addEventListener('click', addExercise);
 
-  // Delegated stepper clicks (exercises + finisher — handled at document level)
-  document.addEventListener('click', (e) => {
+  // Delegated stepper clicks (at form level to catch exercises + finisher)
+  form.addEventListener('click', (e) => {
     // Note modal
     const noteBtn = e.target.closest('.set-note-btn');
     if (noteBtn) {
-      const hiddenInput = noteBtn.nextElementSibling;
-      const currentVal = hiddenInput.value || '';
-      const bodyHtml = `<textarea id="edit-note-textarea" class="input" rows="4" style="resize: none; width: 100%;" placeholder="Notiz eingeben...">${escapeHtml(currentVal)}</textarea>`;
-
-      showModal({
-        title: 'Notiz',
-        body: bodyHtml,
-        confirmText: 'Speichern',
-        cancelText: 'Abbrechen',
-        onConfirm: () => {
-          const ta = document.getElementById('edit-note-textarea');
-          if (ta) {
-            const newVal = ta.value;
-            hiddenInput.value = newVal;
-            hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-            noteBtn.classList.toggle('has-note', !!newVal);
-          }
-        }
-      });
-      // Focus textarea
-      setTimeout(() => {
-        const ta = document.getElementById('edit-note-textarea');
-        if (ta) {
-          ta.focus();
-          ta.setSelectionRange(ta.value.length, ta.value.length);
-        }
-      }, 50);
+      e.stopPropagation();
+      handleNoteClick(noteBtn);
       return;
     }
 
+    // Skip toggle
+    const skipBtn = e.target.closest('.skip-btn');
+    if (skipBtn) {
+      e.stopPropagation();
+      handleSkipToggle(skipBtn);
+      return;
+    }
+
+    // Stepper buttons
     const btn = e.target.closest('.stepper__btn');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     const stepper = btn.closest('.stepper');
     if (!stepper) return;
     const input = stepper.querySelector('input');
-    if (!input) return;
+    if (!input || input.disabled) return;
     const isInc = btn.classList.contains('stepper-inc');
     const current = parseInt(input.value) || 0;
     const min = input.min !== '' ? parseInt(input.min) : -Infinity;
@@ -331,7 +381,7 @@ function bindFormEvents(workout) {
   });
 
   // Enforce min/max on manual stepper input typing
-  document.addEventListener('change', (e) => {
+  form.addEventListener('change', (e) => {
     if (e.target.classList && e.target.classList.contains('stepper__input')) {
       const input = e.target;
       let val = parseInt(input.value);
@@ -381,8 +431,8 @@ function bindFormEvents(workout) {
       if (mode === 'lr') {
         // Add a pair (left + right)
         const pairNum = Math.floor(currentSets.length / 2) + 1;
-        const leftSet = { setId: uuid(), label: `Satz ${pairNum} (links)`, reps: 0, rpe: 5, note: '' };
-        const rightSet = { setId: uuid(), label: `Satz ${pairNum} (rechts)`, reps: 0, rpe: 5, note: '' };
+        const leftSet = { setId: uuid(), label: `Satz ${pairNum} (links)`, reps: 0, rpe: 5, note: '', skipped: false };
+        const rightSet = { setId: uuid(), label: `Satz ${pairNum} (rechts)`, reps: 0, rpe: 5, note: '', skipped: false };
         setsContainer.insertAdjacentHTML('beforeend', renderSetRow(leftSet, currentSets.length));
         setsContainer.insertAdjacentHTML('beforeend', renderSetRow(rightSet, currentSets.length + 1));
       } else {
@@ -412,7 +462,7 @@ function bindFormEvents(workout) {
     if (e.target.checked) {
       const finisher = workout.finisher && workout.finisher.type
         ? workout.finisher
-        : { type: 'AMRAP', entries: [createEmptyFinisherEntry()] };
+        : { type: 'AMRAP', name: '', entries: [createEmptyFinisherEntry()] };
       container.innerHTML = renderFinisherBlock(finisher);
       bindFinisherEvents();
     } else {
@@ -514,7 +564,7 @@ function bindFinisherEvents() {
       const entry = e.target.closest('.finisher-entry');
       const setsContainer = entry.querySelector('.finisher-sets-container');
       const count = setsContainer.querySelectorAll('.set-row').length;
-      const newSet = { setId: uuid(), label: `Satz ${count + 1}`, reps: 0, rpe: 5, note: '' };
+      const newSet = { setId: uuid(), label: `Satz ${count + 1}`, reps: 0, rpe: 5, note: '', skipped: false };
       setsContainer.insertAdjacentHTML('beforeend', renderSetRow(newSet, count));
       return;
     }
@@ -539,7 +589,8 @@ function rebuildSetsForMode(card, newMode) {
   const values = currentSets.map(row => ({
     reps: parseInt(row.querySelector('.set-reps').value) || 0,
     rpe: parseInt(row.querySelector('.set-rpe').value) || 5,
-    note: row.querySelector('.set-note').value || ''
+    note: row.querySelector('.set-note').value || '',
+    skipped: row.classList.contains('skipped')
   }));
 
   // Clear and rebuild
@@ -550,8 +601,8 @@ function rebuildSetsForMode(card, newMode) {
     const pairCount = Math.max(1, Math.ceil(values.length / 2));
     for (let p = 0; p < pairCount; p++) {
       const vi = p * 2;
-      const leftVal = values[vi] || { reps: 0, rpe: 5, note: '' };
-      const rightVal = values[vi + 1] || { reps: 0, rpe: 5, note: '' };
+      const leftVal = values[vi] || { reps: 0, rpe: 5, note: '', skipped: false };
+      const rightVal = values[vi + 1] || { reps: 0, rpe: 5, note: '', skipped: false };
       const leftSet = { setId: uuid(), label: `Satz ${p + 1} (links)`, ...leftVal };
       const rightSet = { setId: uuid(), label: `Satz ${p + 1} (rechts)`, ...rightVal };
       setsContainer.insertAdjacentHTML('beforeend', renderSetRow(leftSet, p * 2));
@@ -561,7 +612,7 @@ function rebuildSetsForMode(card, newMode) {
     // Normal mode
     const count = Math.max(1, values.length);
     for (let i = 0; i < count; i++) {
-      const val = values[i] || { reps: 0, rpe: 5, note: '' };
+      const val = values[i] || { reps: 0, rpe: 5, note: '', skipped: false };
       const set = { setId: uuid(), label: `Satz ${i + 1}`, ...val };
       setsContainer.insertAdjacentHTML('beforeend', renderSetRow(set, i));
     }
@@ -607,7 +658,8 @@ function collectWorkoutFromForm() {
       label: row.querySelector('.set-label').dataset.rawLabel || row.querySelector('.set-label').textContent,
       reps: parseInt(row.querySelector('.set-reps')?.value) || 0,
       rpe: parseInt(row.querySelector('.set-rpe')?.value) || 5,
-      note: row.querySelector('.set-note')?.value || ''
+      note: row.querySelector('.set-note')?.value || '',
+      skipped: row.classList.contains('skipped')
     }));
     return {
       exerciseId: card.dataset.exerciseId || uuid(),
@@ -624,8 +676,9 @@ function collectWorkoutFromForm() {
     const block = document.querySelector('.finisher-block');
     if (block) {
       const type = block.dataset.finisherType || 'AMRAP';
+      const fName = document.getElementById('finisher-name-input')?.value || '';
       const entries = collectFinisherEntries();
-      finisher = { type, entries };
+      finisher = { type, name: fName, entries };
     }
   }
 
@@ -646,13 +699,15 @@ function collectFinisherEntries() {
   const finisherType = document.querySelector('.finisher-block')?.dataset.finisherType || 'AMRAP';
 
   return Array.from(entriesEls).map(el => {
+    const isSkipped = el.classList.contains('skipped');
     const entry = {
       id: el.dataset.entryId || uuid(),
       name: el.querySelector('.finisher-entry-name')?.value || '',
       rpe: 5,
       note: '',
       result: '',
-      sets: []
+      sets: [],
+      skipped: isSkipped
     };
 
     if (finisherType === 'NORMAL') {
@@ -663,7 +718,8 @@ function collectFinisherEntries() {
           label: row.querySelector('.set-label').dataset.rawLabel || row.querySelector('.set-label').textContent,
           reps: parseInt(row.querySelector('.set-reps')?.value) || 0,
           rpe: parseInt(row.querySelector('.set-rpe')?.value) || 5,
-          note: row.querySelector('.set-note')?.value || ''
+          note: row.querySelector('.set-note')?.value || '',
+          skipped: row.classList.contains('skipped')
         }));
       }
     } else {

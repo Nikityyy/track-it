@@ -4,6 +4,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    touch-action: manipulation;
 }
 
 html {
@@ -1118,8 +1119,297 @@ a:focus-visible {
     border-radius: var(--radius-sm);
 }
 
+
+
+/* ── Selection ── */
+::selection {
+    background: var(--accent);
+    color: #fff;
+}
+
+/* ── Skip Button ── */
+.skip-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    transition: color 0.15s, background 0.15s, opacity 0.1s;
+}
+
+.skip-btn:hover {
+    color: var(--text-primary);
+    background: var(--surface-hover);
+}
+
+.skip-btn.active {
+    background: #f59e0b;
+    color: #000;
+}
+
+.skip-btn.active:hover {
+    background: #d97706;
+}
+
+.set-row.skipped {
+    opacity: 0.35;
+}
+
+.set-row.skipped .stepper {
+    pointer-events: none;
+}
+
+.finisher-entry.skipped {
+    opacity: 0.35;
+}
+
+.finisher-entry.skipped .amrap-grid,
+.finisher-entry.skipped .sets-header,
+.finisher-entry.skipped .finisher-sets-container,
+.finisher-entry.skipped .add-finisher-set {
+    pointer-events: none;
+}
+
+/* ── Detail Skipped ── */
+.detail-skipped {
+    opacity: 0.5;
+}
+
+.skipped-text {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.detail-skipped-card {
+    opacity: 0.5;
+    border-style: dashed;
+}
+
+.badge-skipped {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.3);
+    font-size: 10px;
+}
+
+/* ── Landscape Overlay ── */
+@media (orientation: landscape) and (max-height: 500px) {
+    #app {
+        display: none !important;
+    }
+
+    body::after {
+        content: 'Bitte drehe dein Gerät ins Hochformat 📱';
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+        color: var(--text-primary);
+        font-size: 16px;
+        font-weight: 500;
+        text-align: center;
+        padding: 24px;
+        z-index: 9999;
+    }
+}
+
+/* ── Stats Grid ── */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-1);
+    margin-bottom: calc(var(--space-1) * 2);
+}
+
+.stat-card {
+    background: var(--surface);
+    border: 1px solid var(--muted-border);
+    border-radius: var(--radius-md);
+    padding: calc(var(--space-1) * 1.5) calc(var(--space-1) * 1);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+}
+
+/* ── Charts ── */
+.charts-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: calc(var(--space-1) * 1.5);
+    margin-bottom: calc(var(--space-1) * 3);
+}
+
+.chart-container {
+    background: var(--surface);
+    border: 1px solid var(--muted-border);
+    border-radius: var(--radius-md);
+    padding: calc(var(--space-1) * 2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.chart-container-bar {
+    align-items: stretch;
+    min-width: 0;
+}
+
+.chart-container-bar canvas {
+    width: 100% !important;
+}
+
+.chart-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: calc(var(--space-1) * 1);
+    align-self: flex-start;
+}
+
+.chart-legend {
+    margin-top: calc(var(--space-1) * 1);
+    width: 100%;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 11px;
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legend-label {
+    flex: 1;
+    color: var(--text-muted);
+}
+
+.legend-value {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Redesigned Workout Cards ── */
+.workout-card-v2 {
+    display: flex;
+    overflow: hidden;
+    transition: border-color 0.15s, transform 0.15s;
+    cursor: pointer;
+    padding: 0;
+}
+
+.workout-card-v2:hover {
+    border-color: var(--muted-border-hover);
+    transform: translateY(-1px);
+}
+
+.workout-card-accent {
+    width: 4px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.workout-card-body {
+    flex: 1;
+    padding: calc(var(--space-1) * 1.5) calc(var(--space-1) * 2);
+    min-width: 0;
+}
+
+.workout-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.workout-card-v2 .workout-card-type {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.workout-card-v2 .workout-card-date {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.workout-card-v2 .workout-card-name {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.workout-card-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    border: 1px solid var(--muted-border);
+}
+
+.chip svg {
+    width: 12px;
+    height: 12px;
+}
+
+.chip-rpe {
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
 /* ── Responsive ── */
 @media (max-width: 480px) {
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+
     .detail-actions {
         flex-direction: column;
     }
@@ -1150,10 +1440,4 @@ a:focus-visible {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.14);
-}
-
-/* ── Selection ── */
-::selection {
-    background: var(--accent);
-    color: #fff;
 }

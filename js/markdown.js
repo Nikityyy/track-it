@@ -1,6 +1,6 @@
 function exportWorkoutMarkdown(workout) {
     const dateStr = formatDateDE(workout.date);
-    let md = `# ${workout.type} – ${dateStr}\n\n`;
+    let md = `# ${workout.name || workout.type + ' – ' + dateStr}\n\n`;
 
     // Übungen
     if (workout.exercises && workout.exercises.length > 0) {
@@ -8,8 +8,12 @@ function exportWorkoutMarkdown(workout) {
         for (const ex of workout.exercises) {
             md += `### ${ex.name || 'Unbenannte Übung'}\n`;
             for (const set of ex.sets) {
-                const noteText = set.note && set.note.trim() ? set.note.trim() : '–';
-                md += `- ${set.label}: ${set.reps} Wdh | RPE ${set.rpe} | Notiz: ${noteText}\n`;
+                if (set.skipped) {
+                    md += `- ${set.label}: ~~Übersprungen~~\n`;
+                } else {
+                    const noteText = set.note && set.note.trim() ? set.note.trim() : '–';
+                    md += `- ${set.label}: ${set.reps} Wdh | RPE ${set.rpe} | Notiz: ${noteText}\n`;
+                }
             }
             md += '\n';
         }
@@ -17,15 +21,25 @@ function exportWorkoutMarkdown(workout) {
 
     // Finisher
     if (workout.finisher && workout.finisher.type) {
-        md += `## Finisher (${workout.finisher.type})\n\n`;
+        const finTitle = workout.finisher.name || `Finisher (${workout.finisher.type})`;
+        md += `## ${finTitle}\n\n`;
         if (workout.finisher.entries) {
             for (const entry of workout.finisher.entries) {
-                md += `### ${entry.name || 'Unbenannt'}\n`;
+                md += `### ${entry.name || 'Unbenannt'}`;
+                if (entry.skipped) {
+                    md += ` ~~Übersprungen~~\n\n`;
+                    continue;
+                }
+                md += '\n';
                 if (workout.finisher.type === 'NORMAL' && entry.sets && entry.sets.length > 0) {
                     // Set-based finisher
                     for (const set of entry.sets) {
-                        const noteText = set.note && set.note.trim() ? set.note.trim() : '–';
-                        md += `- ${set.label}: ${set.reps} Wdh | RPE ${set.rpe} | Notiz: ${noteText}\n`;
+                        if (set.skipped) {
+                            md += `- ${set.label}: ~~Übersprungen~~\n`;
+                        } else {
+                            const noteText = set.note && set.note.trim() ? set.note.trim() : '–';
+                            md += `- ${set.label}: ${set.reps} Wdh | RPE ${set.rpe} | Notiz: ${noteText}\n`;
+                        }
                     }
                 } else {
                     // AMRAP / EMOM — result-based
