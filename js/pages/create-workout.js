@@ -198,10 +198,6 @@ function renderFinisherBlock(finisher) {
   return `
     <div class="finisher-block" data-finisher-type="${type}">
       <div class="form-row">
-        <label class="form-label">Finisher-Name</label>
-        <input type="text" class="input" id="finisher-name-input" value="${escapeHtml(fName)}" placeholder="z. B. Kardio-Finisher" aria-label="Finisher Name">
-      </div>
-      <div class="form-row">
         <label class="form-label">Finisher-Typ</label>
         <div class="finisher-type-toggle">
           <button type="button" class="btn btn-sm ${type === 'AMRAP' ? 'btn-primary' : 'btn-ghost'} finisher-type-btn" data-type="AMRAP">AMRAP</button>
@@ -230,6 +226,10 @@ function renderFinisherEntry(entry, index, type) {
             ${icon('skipForward', 14)}
           </button>
           <button type="button" class="btn-icon btn-danger-icon remove-finisher-entry" aria-label="Eintrag entfernen">${icon('trash', 16)}</button>
+        </div>
+        <div class="exercise-mode-toggle">
+          <button type="button" class="btn btn-sm ${entry.mode === 'lr' ? 'btn-ghost' : 'btn-primary'} mode-btn" data-mode="normal">Normal</button>
+          <button type="button" class="btn btn-sm ${entry.mode === 'lr' ? 'btn-primary' : 'btn-ghost'} mode-btn" data-mode="lr">Links/Rechts</button>
         </div>
         <div class="sets-header">
           <div class="sets-header-col">Satz</div>
@@ -318,6 +318,8 @@ function handleSkipToggle(skipBtn) {
   row.classList.toggle('skipped', isNowSkipped);
   skipBtn.classList.toggle('active', isNowSkipped);
 
+  if (window.haptic) window.haptic.trigger('light');
+
   // Disable/enable inputs in the row
   row.querySelectorAll('input:not([type="hidden"]), .stepper__btn').forEach(el => {
     if (el.classList.contains('skip-btn') || el.classList.contains('finisher-skip-btn')) return;
@@ -338,6 +340,7 @@ function bindFormEvents(workout) {
 
   // Add exercise (top + bottom)
   const addExercise = () => {
+    if (window.haptic) window.haptic.trigger('medium');
     const container = document.getElementById('exercises-container');
     const newEx = createEmptyExercise();
     const index = container.children.length;
@@ -400,6 +403,7 @@ function bindFormEvents(workout) {
 
     // Remove exercise
     if (e.target.closest('.remove-exercise')) {
+      if (window.haptic) window.haptic.trigger('medium');
       const container = document.getElementById('exercises-container');
       if (container.children.length > 1) {
         card.remove();
@@ -412,6 +416,7 @@ function bindFormEvents(workout) {
     // Mode toggle
     const modeBtn = e.target.closest('.mode-btn');
     if (modeBtn) {
+      if (window.haptic) window.haptic.trigger('light');
       const newMode = modeBtn.dataset.mode;
       card.querySelectorAll('.mode-btn').forEach(b => {
         b.classList.toggle('btn-primary', b.dataset.mode === newMode);
@@ -424,7 +429,9 @@ function bindFormEvents(workout) {
 
     // Add set
     if (e.target.closest('.add-set')) {
-      const setsContainer = card.querySelector('.sets-container');
+      if (window.haptic) window.haptic.trigger('medium');
+      const isFinisher = card.classList.contains('finisher-entry');
+      const setsContainer = isFinisher ? card.querySelector('.finisher-sets-container') : card.querySelector('.sets-container');
       const currentSets = setsContainer.querySelectorAll('.set-row');
       const mode = card.querySelector('.mode-btn.btn-primary')?.dataset.mode || 'normal';
 
@@ -444,7 +451,9 @@ function bindFormEvents(workout) {
 
     // Remove set
     if (e.target.closest('.remove-set')) {
-      const setsContainer = card.querySelector('.sets-container');
+      if (window.haptic) window.haptic.trigger('medium');
+      const isFinisher = card.classList.contains('finisher-entry');
+      const setsContainer = isFinisher ? card.querySelector('.finisher-sets-container') : card.querySelector('.sets-container');
       if (setsContainer.querySelectorAll('.set-row').length > 1) {
         e.target.closest('.set-row').remove();
         // Rebuild labels
@@ -511,6 +520,7 @@ function bindFormEvents(workout) {
     w.updatedAt = new Date().toISOString();
     await saveWorkout(w);
     await clearDraft();
+    if (window.haptic) window.haptic.trigger('success');
     showToast(isEditMode ? 'Workout gespeichert' : 'Workout erstellt');
     Router.navigate('/workout/' + w.workoutId);
   });
@@ -524,6 +534,7 @@ function bindFinisherEvents() {
   container.addEventListener('click', (e) => {
     const typeBtn = e.target.closest('.finisher-type-btn');
     if (typeBtn) {
+      if (window.haptic) window.haptic.trigger('light');
       const newType = typeBtn.dataset.type;
       container.querySelectorAll('.finisher-type-btn').forEach(b => {
         b.classList.toggle('btn-primary', b.dataset.type === newType);
@@ -540,6 +551,7 @@ function bindFinisherEvents() {
 
     // Add finisher entry
     if (e.target.closest('#add-finisher-entry')) {
+      if (window.haptic) window.haptic.trigger('medium');
       const type = container.querySelector('.finisher-block')?.dataset.finisherType || 'AMRAP';
       const entriesEl = document.getElementById('finisher-entries');
       const newEntry = createEmptyFinisherEntry();
@@ -549,6 +561,7 @@ function bindFinisherEvents() {
 
     // Remove finisher entry
     if (e.target.closest('.remove-finisher-entry')) {
+      if (window.haptic) window.haptic.trigger('medium');
       const entry = e.target.closest('.finisher-entry');
       const entriesEl = document.getElementById('finisher-entries');
       if (entriesEl.children.length > 1) {
@@ -561,6 +574,7 @@ function bindFinisherEvents() {
 
     // Add finisher set (NORMAL type)
     if (e.target.closest('.add-finisher-set')) {
+      if (window.haptic) window.haptic.trigger('medium');
       const entry = e.target.closest('.finisher-entry');
       const setsContainer = entry.querySelector('.finisher-sets-container');
       const count = setsContainer.querySelectorAll('.set-row').length;
@@ -582,7 +596,8 @@ function bindFinisherEvents() {
 }
 
 function rebuildSetsForMode(card, newMode) {
-  const setsContainer = card.querySelector('.sets-container');
+  const isFinisher = card.classList.contains('finisher-entry');
+  const setsContainer = isFinisher ? card.querySelector('.finisher-sets-container') : card.querySelector('.sets-container');
   const currentSets = Array.from(setsContainer.querySelectorAll('.set-row'));
 
   // Collect values (stepper inputs use .stepper__input.set-reps / .set-rpe)
@@ -676,9 +691,8 @@ function collectWorkoutFromForm() {
     const block = document.querySelector('.finisher-block');
     if (block) {
       const type = block.dataset.finisherType || 'AMRAP';
-      const fName = document.getElementById('finisher-name-input')?.value || '';
       const entries = collectFinisherEntries();
-      finisher = { type, name: fName, entries };
+      finisher = { type, entries };
     }
   }
 
@@ -707,7 +721,8 @@ function collectFinisherEntries() {
       note: '',
       result: '',
       sets: [],
-      skipped: isSkipped
+      skipped: isSkipped,
+      mode: el.querySelector('.mode-btn.btn-primary')?.dataset.mode || 'normal'
     };
 
     if (finisherType === 'NORMAL') {

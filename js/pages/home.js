@@ -51,7 +51,7 @@ async function renderHomePage() {
 
   // --- Draft banner ---
   let draftBanner = '';
-  if (draft && draft.workout) {
+  if (draft && draft.workout && !draft.isEdit) {
     draftBanner = `
       <div class="card draft-banner" id="draft-banner">
         <div class="draft-banner-content">
@@ -181,6 +181,7 @@ async function renderHomePage() {
   });
 
   document.getElementById('discard-draft')?.addEventListener('click', async () => {
+    if (window.haptic) window.haptic.trigger('warning');
     await clearDraft();
     document.getElementById('draft-banner')?.remove();
     showToast('Entwurf verworfen');
@@ -196,9 +197,9 @@ async function renderHomePage() {
 // ── Color generation ──
 function generateTypeColors(types) {
   const palette = [
-    '#6366f1', '#8b5cf6', '#ec4899', '#f97316',
-    '#14b8a6', '#3b82f6', '#f59e0b', '#10b981',
-    '#ef4444', '#06b6d4', '#84cc16', '#a855f7'
+    '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+    '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
+    '#0ea5e9', '#84cc16', '#a855f7', '#6366f1'
   ];
   const map = {};
   types.forEach((t, i) => {
@@ -281,7 +282,7 @@ function drawBarChart(canvasId, data) {
   ctx.scale(dpr, dpr);
 
   const maxVal = Math.max(...data.map(d => d.count), 1);
-  const padding = { top: 10, right: 10, bottom: 28, left: 10 };
+  const padding = { top: 24, right: 10, bottom: 28, left: 10 };
   const chartW = w - padding.left - padding.right;
   const chartH = h - padding.top - padding.bottom;
   const barGap = 6;

@@ -736,7 +736,7 @@ select option {
 
 .sets-header {
     display: grid;
-    grid-template-columns: 2.75rem 1fr 1fr 4rem;
+    grid-template-columns: 2.75rem 1fr 1fr 120px;
     gap: 6px;
     align-items: center;
     padding: 0;
@@ -754,7 +754,7 @@ select option {
 
 .set-row {
     display: grid;
-    grid-template-columns: 2.75rem 1fr 1fr 4rem;
+    grid-template-columns: 2.75rem 1fr 1fr 120px;
     gap: 6px;
     align-items: center;
     padding: calc(var(--space-1)) 0;
@@ -889,6 +889,7 @@ select option {
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-left: 12px;
     transition: background 0.15s, opacity 0.1s;
 }
 

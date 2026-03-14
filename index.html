@@ -45,6 +45,11 @@
     <script src="./js/pages/settings.js"></script>
 
     <script src="./js/app.js"></script>
+
+    <script type="module">
+        import { WebHaptics } from 'https://esm.sh/web-haptics@0.0.6';
+        window.haptic = new WebHaptics();
+    </script>
 </body>
 
 </html>

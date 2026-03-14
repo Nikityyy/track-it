@@ -9,7 +9,8 @@ function exportWorkoutMarkdown(workout) {
             md += `### ${ex.name || 'Unbenannte Übung'}\n`;
             for (const set of ex.sets) {
                 if (set.skipped) {
-                    md += `- ${set.label}: ~~Übersprungen~~\n`;
+                    const noteText = set.note && set.note.trim() ? set.note.trim() : '';
+                    md += `- ${set.label}: ~~Übersprungen~~${noteText ? ` | Notiz: ${noteText}` : ''}\n`;
                 } else {
                     const noteText = set.note && set.note.trim() ? set.note.trim() : '–';
                     md += `- ${set.label}: ${set.reps} Wdh | RPE ${set.rpe} | Notiz: ${noteText}\n`;
@@ -35,7 +36,8 @@ function exportWorkoutMarkdown(workout) {
                     // Set-based finisher
                     for (const set of entry.sets) {
                         if (set.skipped) {
-                            md += `- ${set.label}: ~~Übersprungen~~\n`;
+                            const noteText = set.note && set.note.trim() ? set.note.trim() : '';
+                            md += `- ${set.label}: ~~Übersprungen~~${noteText ? ` | Notiz: ${noteText}` : ''}\n`;
                         } else {
                             const noteText = set.note && set.note.trim() ? set.note.trim() : '–';
                             md += `- ${set.label}: ${set.reps} Wdh | RPE ${set.rpe} | Notiz: ${noteText}\n`;
