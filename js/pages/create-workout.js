@@ -576,6 +576,22 @@ function bindFinisherEvents() {
       return;
     }
 
+    // Mode toggle in finisher entry
+    const modeBtn = e.target.closest('.mode-btn');
+    if (modeBtn) {
+      if (window.haptic) window.haptic.trigger(20);
+      const card = e.target.closest('.finisher-entry');
+      if (!card) return;
+      const newMode = modeBtn.dataset.mode;
+      card.querySelectorAll('.mode-btn').forEach(b => {
+        b.classList.toggle('btn-primary', b.dataset.mode === newMode);
+        b.classList.toggle('btn-ghost', b.dataset.mode !== newMode);
+      });
+      // Rebuild sets with new labels
+      rebuildSetsForMode(card, newMode);
+      return;
+    }
+
     // Add finisher set (NORMAL type)
     if (e.target.closest('.add-finisher-set')) {
       if (window.haptic) window.haptic.trigger(40);
@@ -617,22 +633,20 @@ function rebuildSetsForMode(card, newMode) {
   setsContainer.innerHTML = '';
 
   if (newMode === 'lr') {
-    // Convert to pairs — take first values and duplicate
-    const pairCount = Math.max(1, Math.ceil(values.length / 2));
-    for (let p = 0; p < pairCount; p++) {
-      const vi = p * 2;
-      const leftVal = values[vi] || { reps: 0, rpe: 5, note: '', skipped: false };
-      const rightVal = values[vi + 1] || { reps: 0, rpe: 5, note: '', skipped: false };
-      const leftSet = { setId: uuid(), label: `Satz ${p + 1} (links)`, ...leftVal };
-      const rightSet = { setId: uuid(), label: `Satz ${p + 1} (rechts)`, ...rightVal };
-      setsContainer.insertAdjacentHTML('beforeend', renderSetRow(leftSet, p * 2));
-      setsContainer.insertAdjacentHTML('beforeend', renderSetRow(rightSet, p * 2 + 1));
+    // Normal -> L/R: Each existing row becomes a pair (Left + Right)
+    for (let i = 0; i < values.length; i++) {
+      const val = values[i];
+      const leftSet = { setId: uuid(), label: `Satz ${i + 1} (links)`, ...val };
+      const rightSet = { setId: uuid(), label: `Satz ${i + 1} (rechts)`, ...val };
+      setsContainer.insertAdjacentHTML('beforeend', renderSetRow(leftSet, i * 2));
+      setsContainer.insertAdjacentHTML('beforeend', renderSetRow(rightSet, i * 2 + 1));
     }
   } else {
-    // Normal mode
-    const count = Math.max(1, values.length);
+    // L/R -> Normal: Each pair collapses into one row. 
+    // We take data from the "left" side (even indices) as the template.
+    const count = Math.ceil(values.length / 2);
     for (let i = 0; i < count; i++) {
-      const val = values[i] || { reps: 0, rpe: 5, note: '', skipped: false };
+      const val = values[i * 2] || { reps: 0, rpe: 5, note: '', skipped: false };
       const set = { setId: uuid(), label: `Satz ${i + 1}`, ...val };
       setsContainer.insertAdjacentHTML('beforeend', renderSetRow(set, i));
     }
