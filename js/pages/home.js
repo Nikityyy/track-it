@@ -181,7 +181,7 @@ async function renderHomePage() {
   });
 
   document.getElementById('discard-draft')?.addEventListener('click', async () => {
-    if (window.haptic) window.haptic.trigger('warning');
+    if (window.haptic) window.haptic.trigger('error');
     await clearDraft();
     document.getElementById('draft-banner')?.remove();
     showToast('Entwurf verworfen');

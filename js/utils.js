@@ -117,10 +117,18 @@ const Router = {
     },
 
     navigate(path) {
+        // We set a flag to avoid double haptic when hashchange triggers _resolve
+        this._isNavigating = true;
+        if (window.haptic) window.haptic.trigger(20);
         window.location.hash = path;
     },
 
     _resolve() {
+        if (!this._isNavigating) {
+            if (window.haptic) window.haptic.trigger(20);
+        }
+        this._isNavigating = false;
+        
         const rawHash = window.location.hash.slice(1) || '/';
         // Strip query string for route matching but preserve it for page access
         const hash = rawHash.split('?')[0] || '/';

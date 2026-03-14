@@ -73,6 +73,7 @@ async function renderSettingsPage() {
     const btn = e.target.closest('.type-delete');
     if (!btn) return;
     const id = btn.dataset.id;
+    if (window.haptic) window.haptic.trigger('error');
     await deleteWorkoutType(id);
     btn.closest('.type-item').remove();
     showToast('Typ gelöscht');
@@ -80,6 +81,7 @@ async function renderSettingsPage() {
 
   // Add type
   document.getElementById('add-type').addEventListener('click', async () => {
+    if (window.haptic) window.haptic.trigger(40);
     const newType = { id: uuid(), name: '' };
     await saveWorkoutType(newType);
     const item = document.createElement('div');
@@ -95,6 +97,7 @@ async function renderSettingsPage() {
 
   // ── Export ──
   document.getElementById('btn-export').addEventListener('click', async () => {
+    if (window.haptic) window.haptic.trigger('success');
     const data = await exportAllData();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -109,6 +112,7 @@ async function renderSettingsPage() {
   // ── Import ──
   const importFile = document.getElementById('import-file');
   document.getElementById('btn-import').addEventListener('click', () => {
+    if (window.haptic) window.haptic.trigger(20);
     importFile.click();
   });
   importFile.addEventListener('change', (e) => {
@@ -121,6 +125,7 @@ async function renderSettingsPage() {
       cancelText: 'Abbrechen',
       danger: true,
       onConfirm: async () => {
+        if (window.haptic) window.haptic.trigger('success');
         try {
           const text = await file.text();
           const data = JSON.parse(text);

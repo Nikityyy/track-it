@@ -157,7 +157,7 @@ async function renderWorkoutDetailPage(params) {
   });
 
   document.getElementById('btn-delete-workout').addEventListener('click', () => {
-    if (window.haptic) window.haptic.trigger('warning');
+    if (window.haptic) window.haptic.trigger('error');
     showModal({
       title: 'Workout löschen',
       body: `<p>Möchtest du <strong>${escapeHtml(workout.name)}</strong> wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.</p>`,
