@@ -166,12 +166,12 @@ function renderSetRow(set, index) {
       <div class="set-label" data-raw-label="${escapeHtml(set.label)}">
         <div class="set-badge">${numStr}${sideStr ? `<div class="side">${sideStr}</div>` : ''}</div>
       </div>
-      <div class="stepper stepper-sm stepper-minimal">
+      <div class="stepper stepper-sm stepper-minimal stepper-reps">
         <button type="button" class="stepper__btn stepper-dec" data-target="reps" aria-label="Weniger"${isSkipped ? ' disabled' : ''}>−</button>
         <input type="number" class="stepper__input set-reps" value="${set.reps}" min="0" aria-label="Wiederholungen"${isSkipped ? ' disabled' : ''}>
         <button type="button" class="stepper__btn stepper-inc" data-target="reps" aria-label="Mehr"${isSkipped ? ' disabled' : ''}>+</button>
       </div>
-      <div class="stepper stepper-sm stepper-minimal">
+      <div class="stepper stepper-sm stepper-minimal stepper-rpe">
         <button type="button" class="stepper__btn stepper-dec" data-target="rpe" aria-label="Weniger"${isSkipped ? ' disabled' : ''}>−</button>
         <input type="number" class="stepper__input set-rpe" value="${set.rpe}" min="1" max="10" aria-label="RPE"${isSkipped ? ' disabled' : ''}>
         <button type="button" class="stepper__btn stepper-inc" data-target="rpe" aria-label="Mehr"${isSkipped ? ' disabled' : ''}>+</button>

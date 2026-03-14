@@ -735,13 +735,17 @@ select option {
 }
 
 .sets-header {
-    display: grid;
-    grid-template-columns: 2.75rem 1fr 1fr 120px;
-    gap: 6px;
+    display: flex;
     align-items: center;
+    gap: 6px;
     padding: 0;
     margin-bottom: calc(var(--space-1) * 0.5);
 }
+
+.sets-header-col:nth-child(1) { width: 2.75rem; text-align: center; }
+.sets-header-col:nth-child(2) { flex: 1; text-align: center; }
+.sets-header-col:nth-child(3) { flex: 1; text-align: center; }
+.sets-header-col:nth-child(4) { width: 110px; text-align: right; }
 
 .sets-header-col {
     font-size: 10px;
@@ -753,14 +757,19 @@ select option {
 }
 
 .set-row {
-    display: grid;
-    grid-template-columns: 2.75rem 1fr 1fr 120px;
-    gap: 6px;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 6px;
     padding: calc(var(--space-1)) 0;
     border-bottom: 1px solid var(--muted-border);
     transition: background 0.15s;
 }
+
+.set-row > .set-label { width: 2.75rem; display: flex; justify-content: center; }
+.set-row > .stepper-reps { flex: 1; min-width: 80px; }
+.set-row > .stepper-rpe { flex: 1; min-width: 80px; }
+.set-row > .set-actions { width: 110px; display: flex; justify-content: flex-end; }
 
 .set-row:last-child {
     border-bottom: none;
@@ -770,10 +779,7 @@ select option {
     background: rgba(255, 255, 255, 0.02);
 }
 
-.set-label {
-    display: flex;
-    justify-content: center;
-}
+
 
 .set-badge {
     display: flex;
@@ -1422,6 +1428,20 @@ a:focus-visible {
     .settings-row {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .set-row {
+        gap: 8px;
+    }
+    
+    .set-row > .set-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 4px;
+    }
+    
+    .sets-header-col:nth-child(4) {
+        display: none;
     }
 }
 
