@@ -598,8 +598,18 @@ function bindFinisherEvents() {
       const entry = e.target.closest('.finisher-entry');
       const setsContainer = entry.querySelector('.finisher-sets-container');
       const count = setsContainer.querySelectorAll('.set-row').length;
-      const newSet = { setId: uuid(), label: `Satz ${count + 1}`, reps: 0, rpe: 5, note: '', skipped: false };
-      setsContainer.insertAdjacentHTML('beforeend', renderSetRow(newSet, count));
+      const mode = entry.querySelector('.mode-btn.btn-primary')?.dataset.mode || 'normal';
+
+      if (mode === 'lr') {
+        const pairNum = Math.floor(count / 2) + 1;
+        const leftSet = { setId: uuid(), label: `Satz ${pairNum} (links)`, reps: 0, rpe: 5, note: '', skipped: false };
+        const rightSet = { setId: uuid(), label: `Satz ${pairNum} (rechts)`, reps: 0, rpe: 5, note: '', skipped: false };
+        setsContainer.insertAdjacentHTML('beforeend', renderSetRow(leftSet, count));
+        setsContainer.insertAdjacentHTML('beforeend', renderSetRow(rightSet, count + 1));
+      } else {
+        const newSet = { setId: uuid(), label: `Satz ${count + 1}`, reps: 0, rpe: 5, note: '', skipped: false };
+        setsContainer.insertAdjacentHTML('beforeend', renderSetRow(newSet, count));
+      }
       return;
     }
 
@@ -607,10 +617,12 @@ function bindFinisherEvents() {
     if (e.target.closest('.remove-set')) {
       if (window.haptic) window.haptic.trigger('error');
       const setRow = e.target.closest('.set-row');
+      const entry = setRow.closest('.finisher-entry');
       const setsContainer = setRow.closest('.finisher-sets-container');
       if (setsContainer && setsContainer.querySelectorAll('.set-row').length > 1) {
         setRow.remove();
-        rebuildSetLabelsInDOM(setsContainer, 'normal');
+        const mode = entry?.querySelector('.mode-btn.btn-primary')?.dataset.mode || 'normal';
+        rebuildSetLabelsInDOM(setsContainer, mode);
       }
     }
   });
