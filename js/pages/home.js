@@ -51,13 +51,13 @@ async function renderHomePage() {
 
   // --- Draft banner ---
   let draftBanner = '';
-  if (draft && draft.workout && !draft.isEdit) {
+  if (draft && draft.workout) {
     draftBanner = `
       <div class="card draft-banner" id="draft-banner">
         <div class="draft-banner-content">
           <div class="draft-banner-icon">${icon('fileText', 20)}</div>
           <div class="draft-banner-text">
-            <span class="draft-banner-title">Entwurf vorhanden</span>
+            <span class="draft-banner-title">${draft.isEdit ? 'Bearbeitung offen' : 'Entwurf vorhanden'}</span>
             <span class="draft-banner-sub">${escapeHtml(draft.workout.name || 'Unbenanntes Workout')}</span>
           </div>
         </div>
@@ -177,7 +177,8 @@ async function renderHomePage() {
   });
 
   document.getElementById('resume-draft')?.addEventListener('click', () => {
-    Router.navigate('/create?draft=1');
+    const path = draft && draft.isEdit && draft.editId ? `/edit/${draft.editId}?draft=1` : '/create?draft=1';
+    Router.navigate(path);
   });
 
   document.getElementById('discard-draft')?.addEventListener('click', async () => {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trackit-cache';
+const CACHE_NAME = 'trackit-cache-v6';
 
 const PRECACHE_URLS = [
     './',
@@ -8,6 +8,8 @@ const PRECACHE_URLS = [
     './js/db.js',
     './js/utils.js',
     './js/markdown.js',
+    './js/form-history.js',
+    './js/rest-timer.js',
     './js/app.js',
     './js/components/icons.js',
     './js/components/header.js',

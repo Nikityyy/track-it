@@ -24,6 +24,89 @@ function formatDateTimeDE(dateStr) {
     return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
 }
 
+function formatDateInputValue(dateStr) {
+    const d = dateStr ? new Date(dateStr) : new Date();
+    if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatTimeInputValue(dateStr) {
+    const d = dateStr ? new Date(dateStr) : new Date();
+    if (Number.isNaN(d.getTime())) return new Date().toTimeString().slice(0, 5);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${min}`;
+}
+
+function parseGermanDateInput(dateValue, fallbackIso) {
+    const fallback = fallbackIso && !Number.isNaN(new Date(fallbackIso).getTime())
+        ? new Date(fallbackIso)
+        : new Date();
+    if (!dateValue) return fallback;
+    const trimmed = String(dateValue).trim();
+    const germanMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (germanMatch) {
+        const [, dd, mm, yyyy] = germanMatch.map(Number);
+        const d = new Date(fallback);
+        d.setFullYear(yyyy, mm - 1, dd);
+        return d;
+    }
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (isoMatch) {
+        const [, yyyy, mm, dd] = isoMatch.map(Number);
+        const d = new Date(fallback);
+        d.setFullYear(yyyy, mm - 1, dd);
+        return d;
+    }
+    return fallback;
+}
+
+function parseTimeInput(timeValue, fallbackIso) {
+    const fallback = fallbackIso && !Number.isNaN(new Date(fallbackIso).getTime())
+        ? new Date(fallbackIso)
+        : new Date();
+    const match = String(timeValue || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return { hours: fallback.getHours(), minutes: fallback.getMinutes() };
+    const hours = Math.max(0, Math.min(23, Number(match[1])));
+    const minutes = Math.max(0, Math.min(59, Number(match[2])));
+    return { hours, minutes };
+}
+
+function dateInputToISO(dateValue, fallbackIso) {
+    const fallback = fallbackIso && !Number.isNaN(new Date(fallbackIso).getTime())
+        ? new Date(fallbackIso)
+        : new Date();
+    if (!dateValue) return fallback.toISOString();
+    const [yyyy, mm, dd] = dateValue.split('-').map(Number);
+    if (!yyyy || !mm || !dd) return fallback.toISOString();
+    const d = new Date(fallback);
+    d.setFullYear(yyyy, mm - 1, dd);
+    return d.toISOString();
+}
+
+function dateTimeInputToISO(dateValue, timeValue, fallbackIso) {
+    const fallback = fallbackIso && !Number.isNaN(new Date(fallbackIso).getTime())
+        ? new Date(fallbackIso)
+        : new Date();
+    const d = parseGermanDateInput(dateValue, fallback.toISOString());
+    const { hours, minutes } = parseTimeInput(timeValue, fallback.toISOString());
+    d.setHours(hours, minutes, 0, 0);
+    return d.toISOString();
+}
+
+function formatDuration(seconds) {
+    const total = Number(seconds) || 0;
+    if (total <= 0) return '';
+    const min = Math.floor(total / 60);
+    const sec = total % 60;
+    if (min && sec) return `${min}:${String(sec).padStart(2, '0')} min`;
+    if (min) return `${min} min`;
+    return `${sec} s`;
+}
+
 function generateWorkoutName(type) {
     return `${type} – ${formatDateDE(new Date().toISOString())}`;
 }
@@ -37,6 +120,7 @@ function createEmptySet(index, mode, pairIndex) {
             label: `Satz ${sn} (${side})`,
             reps: 0,
             rpe: 5,
+            breakSeconds: 0,
             note: ''
         };
     }
@@ -45,6 +129,7 @@ function createEmptySet(index, mode, pairIndex) {
         label: `Satz ${index + 1}`,
         reps: 0,
         rpe: 5,
+        breakSeconds: 0,
         note: ''
     };
 }

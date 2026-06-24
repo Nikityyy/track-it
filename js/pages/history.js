@@ -35,9 +35,20 @@ async function renderHistoryPage() {
         <h2 class="page-title">Verlauf</h2>
         <span class="text-muted">${workouts.length} ${workouts.length === 1 ? 'Workout' : 'Workouts'}</span>
       </div>
+      <div class="history-filters">
+        <input type="search" id="history-search" class="input" placeholder="Workouts suchen..." aria-label="Workouts suchen">
+      </div>
       <div class="workout-list">
         ${listHtml}
       </div>
     </div>
   `;
+
+  document.getElementById('history-search')?.addEventListener('input', (e) => {
+    const query = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('.workout-card').forEach(card => {
+      const text = card.textContent.toLowerCase();
+      card.hidden = query && !text.includes(query);
+    });
+  });
 }

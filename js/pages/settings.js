@@ -1,6 +1,7 @@
 async function renderSettingsPage() {
   const app = document.getElementById('app-content');
   const types = await getWorkoutTypes();
+  const lastImportBackup = await getLastImportBackup();
 
   app.innerHTML = `
     <div class="page page-settings">
@@ -37,6 +38,13 @@ async function renderSettingsPage() {
           </div>
           <button class="btn btn-ghost" id="btn-import">${icon('upload', 16)} Importieren</button>
           <input type="file" id="import-file" accept=".json" style="display:none">
+        </div>
+        <div class="settings-row">
+          <div class="settings-info">
+            <span class="settings-label">Letztes Import-Backup</span>
+            <span class="text-muted text-small">Automatische Sicherung vor dem letzten Import herunterladen.</span>
+          </div>
+          <button class="btn btn-ghost" id="btn-download-backup" ${lastImportBackup ? '' : 'disabled'}>${icon('download', 16)} Backup</button>
         </div>
       </section>
 
@@ -99,14 +107,18 @@ async function renderSettingsPage() {
   document.getElementById('btn-export').addEventListener('click', async () => {
     if (window.haptic) window.haptic.trigger('success');
     const data = await exportAllData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `track-it-export-${formatDateDE(new Date().toISOString()).replace(/\./g, '-')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJson(data, `track-it-export-${formatDateDE(new Date().toISOString()).replace(/\./g, '-')}.json`);
     showToast('Export heruntergeladen');
+  });
+
+  document.getElementById('btn-download-backup')?.addEventListener('click', async () => {
+    const backup = await getLastImportBackup();
+    if (!backup) {
+      showToast('Kein Import-Backup vorhanden');
+      return;
+    }
+    downloadJson(backup, `track-it-import-backup-${formatDateDE(new Date().toISOString()).replace(/\./g, '-')}.json`);
+    showToast('Backup heruntergeladen');
   });
 
   // ── Import ──
@@ -115,23 +127,50 @@ async function renderSettingsPage() {
     if (window.haptic) window.haptic.trigger(20);
     importFile.click();
   });
-  importFile.addEventListener('change', (e) => {
+  importFile.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    let data = null;
+    let analysis = null;
+    try {
+      data = JSON.parse(await file.text());
+      analysis = analyzeImportData(data);
+    } catch (err) {
+      showModal({
+        title: 'Import nicht möglich',
+        bodyText: 'Die Datei konnte nicht gelesen werden: ' + err.message,
+        confirmText: 'OK',
+        cancelText: 'Schließen'
+      });
+      importFile.value = '';
+      return;
+    }
+
+    const summary = formatImportSummary(analysis);
+    if (analysis.errors.length > 0) {
+      showModal({
+        title: 'Import nicht möglich',
+        bodyText: summary,
+        confirmText: 'OK',
+        cancelText: 'Schließen',
+        danger: true
+      });
+      importFile.value = '';
+      return;
+    }
+
     showModal({
       title: 'Daten importieren',
-      body: '<p>Alle vorhandenen Daten werden durch die importierten Daten ersetzt. Fortfahren?</p>',
+      bodyText: `${summary}\n\nAlle vorhandenen Daten werden ersetzt. Vor dem Import wird automatisch ein lokales Backup angelegt. Fortfahren?`,
       confirmText: 'Importieren',
       cancelText: 'Abbrechen',
       danger: true,
       onConfirm: async () => {
         if (window.haptic) window.haptic.trigger('success');
         try {
-          const text = await file.text();
-          const data = JSON.parse(text);
           await importAllData(data);
           showToast('Daten erfolgreich importiert');
-          renderSettingsPage(); // Refresh
+          renderSettingsPage();
         } catch (err) {
           showToast('Fehler beim Import: ' + err.message);
         }
@@ -139,4 +178,27 @@ async function renderSettingsPage() {
     });
     importFile.value = '';
   });
+}
+
+function formatImportSummary(analysis) {
+  const lines = [
+    `Gültige Workouts: ${analysis.summary.valid}`,
+    `Reparierte Einträge: ${analysis.summary.repaired}`,
+    `Abgelehnte Einträge: ${analysis.summary.rejected}`
+  ];
+  if (analysis.errors.length > 0) {
+    lines.push('', 'Fehler:', ...analysis.errors.slice(0, 5));
+    if (analysis.errors.length > 5) lines.push(`... und ${analysis.errors.length - 5} weitere`);
+  }
+  return lines.join('\n');
+}
+
+function downloadJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

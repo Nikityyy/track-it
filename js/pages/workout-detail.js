@@ -63,6 +63,7 @@ async function renderWorkoutDetailPage(params) {
       ? `<span class="detail-set-reps skipped-text">Übersprungen</span>`
       : `<span class="detail-set-reps">${s.reps} Wdh</span>
                  <span class="detail-set-rpe">RPE ${s.rpe}</span>
+                 ${s.breakSeconds ? `<span class="detail-set-break">Pause ${formatDuration(s.breakSeconds)}</span>` : ''}
                  ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}`
     }
           </div>
@@ -91,6 +92,7 @@ async function renderWorkoutDetailPage(params) {
         ? `<span class="detail-set-reps skipped-text">Übersprungen</span>`
         : `<span class="detail-set-reps">${s.reps} Wdh</span>
                          <span class="detail-set-rpe">RPE ${s.rpe}</span>
+                         ${s.breakSeconds ? `<span class="detail-set-break">Pause ${formatDuration(s.breakSeconds)}</span>` : ''}
                          ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}`
       }
                   </div>
@@ -160,7 +162,7 @@ async function renderWorkoutDetailPage(params) {
     if (window.haptic) window.haptic.trigger('error');
     showModal({
       title: 'Workout löschen',
-      body: `<p>Möchtest du <strong>${escapeHtml(workout.name)}</strong> wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.</p>`,
+      bodyHtml: `<p>Möchtest du <strong>${escapeHtml(workout.name)}</strong> wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.</p>`,
       confirmText: 'Löschen',
       cancelText: 'Abbrechen',
       danger: true,

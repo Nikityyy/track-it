@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "check": "node --check service-worker.js && node --check js/utils.js && node --check js/db.js && node --check js/markdown.js && node --check js/form-history.js && node --check js/rest-timer.js && node --check js/components/icons.js && node --check js/components/header.js && node --check js/components/toast.js && node --check js/components/modal.js && node --check js/pages/create-workout.js && node --check js/pages/home.js && node --check js/pages/history.js && node --check js/pages/workout-detail.js && node --check js/pages/settings.js && node --check js/app.js && node tests/data-normalization.test.js",
+    "test": "node tests/data-normalization.test.js"
+  }
+}
