@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trackit-cache-v6';
+const CACHE_NAME = 'trackit-cache-v7';
 
 const PRECACHE_URLS = [
     './',
