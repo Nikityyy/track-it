@@ -326,6 +326,7 @@ textarea {
     border: 1px solid var(--muted-border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
+    line-height: 1.5;
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -334,17 +335,34 @@ textarea {
 .input[type="time"] {
     appearance: none;
     -webkit-appearance: none;
+    box-sizing: border-box;
+    display: block;
     height: 42px;
-    inline-size: 100%;
+    width: 100%;
+    max-width: 100%;
     line-height: 1.5;
-    min-inline-size: 0;
+    min-height: 0;
+    min-width: 0;
     text-align: center;
 }
 
 .input[type="date"]::-webkit-date-and-time-value,
 .input[type="time"]::-webkit-date-and-time-value {
+    height: 1.5em;
+    line-height: 1.5;
+    margin: 0;
     min-width: 0;
+    padding: 0;
+    text-align: center;
     width: 100%;
+}
+
+.input[type="date"]::-webkit-datetime-edit,
+.input[type="time"]::-webkit-datetime-edit,
+.input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+.input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+    min-width: 0;
+    padding: 0;
 }
 
 .input:focus,
