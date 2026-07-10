@@ -1,4 +1,5 @@
 let _draftTimer = null;
+let _savedSuccessfully = false;
 
 async function renderCreateWorkoutPage(params) {
   const app = document.getElementById('app-content');
@@ -48,6 +49,7 @@ function cloneWorkout(workout) {
 
 function startAutoDraft() {
   stopAutoDraft();
+  _savedSuccessfully = false;
   _draftTimer = setInterval(() => {
     const workout = collectWorkoutFromForm();
     if (workout) saveDraft({ ...getDraftMeta(), workout, formHistory: getFormHistoryState() });
@@ -60,7 +62,7 @@ function saveCurrentDraft() {
 }
 
 function stopAutoDraft(shouldSave = true) {
-  if (shouldSave) saveCurrentDraft();
+  if (shouldSave && !_savedSuccessfully) saveCurrentDraft();
   if (_draftTimer) {
     clearInterval(_draftTimer);
     _draftTimer = null;
@@ -441,6 +443,7 @@ function bindFormEvents(workout) {
 
     await saveWorkout(w);
     await clearDraft();
+    _savedSuccessfully = true;
     if (window.haptic) window.haptic.trigger('success');
     showToast(isEditMode ? 'Workout gespeichert' : 'Workout erstellt');
     Router.navigate('/workout/' + w.workoutId);
