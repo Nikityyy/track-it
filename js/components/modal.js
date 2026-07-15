@@ -56,5 +56,35 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
     if (e.target === overlay) close();
   });
 
+  // Focus trap
+  overlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.keyCode === 27) {
+        close();
+        return;
+    }
+
+    const isTabPressed = e.key === 'Tab' || e.keyCode === 9;
+    if (!isTabPressed) return;
+
+    const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const focusableContent = overlay.querySelectorAll(focusableElements);
+    if (focusableContent.length === 0) return;
+    
+    const firstFocusableElement = focusableContent[0];
+    const lastFocusableElement = focusableContent[focusableContent.length - 1];
+
+    if (e.shiftKey) {
+      if (document.activeElement === firstFocusableElement) {
+        lastFocusableElement.focus();
+        e.preventDefault();
+      }
+    } else {
+      if (document.activeElement === lastFocusableElement) {
+        firstFocusableElement.focus();
+        e.preventDefault();
+      }
+    }
+  });
+
   overlay.querySelector('.modal-confirm').focus();
 }

@@ -5,18 +5,31 @@ async function renderSettingsPage() {
 
   app.innerHTML = `
     <div class="page page-settings">
+
+  app.innerHTML = `
+    <div class="page page-settings">
       <h2 class="page-title">Einstellungen</h2>
 
       <!-- Workout Types -->
       <section class="settings-section">
         <h3 class="section-title">Workout-Typen</h3>
         <div id="type-list" class="type-list">
-          ${types.map(t => `
+          ${types.length > 0 ? types.map((t, index) => `
             <div class="type-item" data-id="${t.id}">
+              <div style="display: flex; flex-direction: column;">
+                <button class="btn-icon type-move-up" data-id="${t.id}" style="padding: 2px; height: auto;" ${index === 0 ? 'disabled' : ''}>${icon('chevronUp', 16)}</button>
+                <button class="btn-icon type-move-down" data-id="${t.id}" style="padding: 2px; height: auto;" ${index === types.length - 1 ? 'disabled' : ''}>${icon('chevronDown', 16)}</button>
+              </div>
               <input type="text" class="input type-input" value="${escapeHtml(t.name)}" data-id="${t.id}" aria-label="Typ-Name">
               <button class="btn-icon btn-danger-icon type-delete" data-id="${t.id}" aria-label="Typ löschen">${icon('trash', 16)}</button>
             </div>
-          `).join('')}
+          `).join('') : `
+            <div class="empty-state" style="padding: 24px 0; border: none; background: transparent;">
+              <div class="empty-state-icon" style="margin-bottom: 8px;">${icon('settings', 32)}</div>
+              <p class="empty-state-text" style="font-size: 14px;">Keine Workout-Typen vorhanden.</p>
+              <p class="empty-state-sub" style="font-size: 12px;">Füge einen Typ hinzu, um deine Workouts zu organisieren.</p>
+            </div>
+          `}
         </div>
         <button class="btn btn-ghost btn-sm" id="add-type">${icon('plus', 14)} Typ hinzufügen</button>
       </section>
@@ -55,52 +68,97 @@ async function renderSettingsPage() {
   // ── Type editing ──
   const typeList = document.getElementById('type-list');
 
-  // Save on blur
-  typeList.addEventListener('change', async (e) => {
+  async function handleNameChange(e) {
     if (e.target.classList.contains('type-input')) {
       const id = e.target.dataset.id;
       const name = e.target.value.trim();
       if (name) {
-        await saveWorkoutType({ id, name });
+        const type = types.find(t => t.id === id) || { id, name };
+        const oldName = type.name;
+        if (oldName !== name) {
+          type.name = name;
+          await saveWorkoutType(type);
+          
+          if (oldName) {
+            const allWorkouts = await getAllWorkouts();
+            let needsUpdate = false;
+            for (const w of allWorkouts) {
+              if (w.type === oldName) {
+                w.type = name;
+                await saveWorkout(w);
+                needsUpdate = true;
+              }
+            }
+            if (needsUpdate) {
+              showToast('Vorhandene Workouts aktualisiert');
+            }
+          }
+        }
       }
     }
-  });
+  }
 
-  typeList.addEventListener('focusout', async (e) => {
-    if (e.target.classList.contains('type-input')) {
-      const id = e.target.dataset.id;
-      const name = e.target.value.trim();
-      if (name) {
-        await saveWorkoutType({ id, name });
-      }
-    }
-  });
+  typeList.addEventListener('change', handleNameChange);
+  typeList.addEventListener('focusout', handleNameChange);
 
-  // Delete type
+  // Move type up/down
   typeList.addEventListener('click', async (e) => {
+    const btnUp = e.target.closest('.type-move-up');
+    const btnDown = e.target.closest('.type-move-down');
+    
+    if (btnUp || btnDown) {
+      if (window.haptic) window.haptic.trigger(20);
+      const id = (btnUp || btnDown).dataset.id;
+      const index = types.findIndex(t => t.id === id);
+      
+      if (btnUp && index > 0) {
+        const tempOrder = types[index].order;
+        types[index].order = types[index - 1].order;
+        types[index - 1].order = tempOrder;
+        await saveWorkoutType(types[index]);
+        await saveWorkoutType(types[index - 1]);
+        renderSettingsPage();
+      } else if (btnDown && index < types.length - 1) {
+        const tempOrder = types[index].order;
+        types[index].order = types[index + 1].order;
+        types[index + 1].order = tempOrder;
+        await saveWorkoutType(types[index]);
+        await saveWorkoutType(types[index + 1]);
+        renderSettingsPage();
+      }
+      return;
+    }
+
     const btn = e.target.closest('.type-delete');
     if (!btn) return;
     const id = btn.dataset.id;
     if (window.haptic) window.haptic.trigger('error');
-    await deleteWorkoutType(id);
-    btn.closest('.type-item').remove();
-    showToast('Typ gelöscht');
+    
+    showModal({
+      title: 'Typ löschen',
+      bodyText: 'Möchtest du diesen Workout-Typ wirklich löschen? Vorhandene Workouts behalten diesen Typ in der Historie, er steht aber nicht mehr zur Auswahl.',
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      danger: true,
+      onConfirm: async () => {
+        if (window.haptic) window.haptic.trigger('success');
+        await deleteWorkoutType(id);
+        const idx = types.findIndex(t => t.id === id);
+        if (idx !== -1) types.splice(idx, 1);
+        btn.closest('.type-item').remove();
+        showToast('Typ gelöscht');
+      }
+    });
   });
 
   // Add type
   document.getElementById('add-type').addEventListener('click', async () => {
     if (window.haptic) window.haptic.trigger(40);
-    const newType = { id: uuid(), name: '' };
+    const maxOrder = types.reduce((max, t) => Math.max(max, t.order || 0), 0);
+    const newType = { id: uuid(), name: '', order: maxOrder + 1 };
     await saveWorkoutType(newType);
-    const item = document.createElement('div');
-    item.className = 'type-item';
-    item.dataset.id = newType.id;
-    item.innerHTML = `
-      <input type="text" class="input type-input" value="" data-id="${newType.id}" aria-label="Typ-Name" placeholder="Neuer Typ…">
-      <button class="btn-icon btn-danger-icon type-delete" data-id="${newType.id}" aria-label="Typ löschen">${icon('trash', 16)}</button>
-    `;
-    typeList.appendChild(item);
-    item.querySelector('input').focus();
+    types.push(newType); // update local state so moving works
+    renderSettingsPage();
   });
 
   // ── Export ──

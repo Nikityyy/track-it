@@ -196,6 +196,70 @@ function escapeHtml(str) {
 const Router = {
     _routes: {},
     _currentCleanup: null,
+}
+
+function createEmptyExercise() {
+    return {
+        exerciseId: uuid(),
+        name: '',
+        mode: 'normal',
+        sets: [createEmptySet(0, 'normal')]
+    };
+}
+
+function createEmptyWorkout(type) {
+    const now = new Date().toISOString();
+    return {
+        workoutId: uuid(),
+        type: type || '',
+        name: type ? generateWorkoutName(type) : '',
+        date: now,
+        exercises: [createEmptyExercise()],
+        finisher: null,
+        createdAt: now,
+        updatedAt: now
+    };
+}
+
+function createEmptyFinisherEntry() {
+    return {
+        id: uuid(),
+        name: '',
+        result: '',
+        rpe: 5,
+        note: '',
+        sets: []
+    };
+}
+
+function rebuildSetLabels(exercise) {
+    exercise.sets.forEach((set, i) => {
+        if (exercise.mode === 'lr') {
+            const pairNum = Math.floor(i / 2) + 1;
+            const side = i % 2 === 0 ? 'links' : 'rechts';
+            set.label = `Satz ${pairNum} (${side})`;
+        } else {
+            set.label = `Satz ${i + 1}`;
+        }
+    });
+}
+
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\n/g, '&#10;')
+        .replace(/\r/g, '');
+}
+
+/* Simple SPA Router */
+const Router = {
+    _routes: {},
+    _currentCleanup: null,
 
     register(path, handler) {
         this._routes[path] = handler;
@@ -209,12 +273,28 @@ const Router = {
     },
 
     _resolve() {
+        if (this._isReverting) {
+            this._isReverting = false;
+            return;
+        }
+
+        if (typeof this.onBeforeNavigate === 'function') {
+            const allow = this.onBeforeNavigate();
+            if (!allow) {
+                this._isReverting = true;
+                window.location.hash = this._lastHash || '/';
+                return;
+            }
+        }
+
         if (!this._isNavigating) {
             if (window.haptic) window.haptic.trigger(20);
         }
         this._isNavigating = false;
         
         const rawHash = window.location.hash.slice(1) || '/';
+        this._lastHash = window.location.hash;
+        
         // Strip query string for route matching but preserve it for page access
         const hash = rawHash.split('?')[0] || '/';
         const parts = hash.split('/').filter(Boolean);
@@ -265,6 +345,7 @@ const Router = {
     },
 
     init() {
+        if (!this._lastHash) this._lastHash = window.location.hash || '#/';
         window.addEventListener('hashchange', () => this._resolve());
         this._resolve();
     }

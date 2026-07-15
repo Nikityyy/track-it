@@ -41,6 +41,14 @@ async function renderCreateWorkoutPage(params) {
     formHistory: draft && draft.workout === workout ? draft.formHistory : null
   });
   startAutoDraft();
+  
+  window._hasUnsavedChanges = false;
+  Router.onBeforeNavigate = () => {
+    if (window._hasUnsavedChanges) {
+      return confirm('Du hast ungespeicherte Änderungen. Möchtest du wirklich abbrechen? Dein Fortschritt ist als Entwurf gesichert.');
+    }
+    return true;
+  };
 }
 
 function cloneWorkout(workout) {
@@ -303,8 +311,9 @@ function bindFormEvents(workout) {
     scheduleHistoryRecord();
   });
 
-  form.addEventListener('input', scheduleHistoryRecord);
+  form.addEventListener('input', () => { window._hasUnsavedChanges = true; scheduleHistoryRecord(); });
   form.addEventListener('change', (e) => {
+    window._hasUnsavedChanges = true;
     clampNumberInput(e.target);
     scheduleHistoryRecord();
   });
@@ -313,6 +322,7 @@ function bindFormEvents(workout) {
   document.getElementById('btn-redo').addEventListener('click', redoFormChange);
 
   const addExercise = () => {
+    window._hasUnsavedChanges = true;
     const container = document.getElementById('exercises-container');
     container.insertAdjacentHTML('beforeend', renderExerciseCard(createEmptyExercise(), container.children.length));
     if (window.haptic) window.haptic.trigger(40);
@@ -413,6 +423,8 @@ function bindFormEvents(workout) {
   document.getElementById('btn-cancel').addEventListener('click', async () => {
     pauseActiveRestTimer(false);
     stopAutoDraft(false);
+    window._hasUnsavedChanges = false;
+    Router.onBeforeNavigate = null;
     if (form.dataset.isEdit === 'true') {
       await clearDraft();
       Router.navigate('/workout/' + form.dataset.editId);
@@ -431,6 +443,8 @@ function bindFormEvents(workout) {
       return;
     }
     stopAutoDraft(false);
+    window._hasUnsavedChanges = false;
+    Router.onBeforeNavigate = null;
 
     const isEditMode = form.dataset.isEdit === 'true';
     if (isEditMode) {

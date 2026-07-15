@@ -11,33 +11,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Routes
     Router.register('/', () => {
+        window.scrollTo(0, 0);
         renderHomePage();
         setTimeout(updateActiveNav, 0);
     });
 
     Router.register('/create', () => {
+        window.scrollTo(0, 0);
         renderCreateWorkoutPage({});
         setTimeout(updateActiveNav, 0);
         return () => stopAutoDraft();
     });
 
     Router.register('/edit/:id', (params) => {
+        window.scrollTo(0, 0);
         renderCreateWorkoutPage(params);
         setTimeout(updateActiveNav, 0);
         return () => stopAutoDraft();
     });
 
     Router.register('/workout/:id', (params) => {
+        window.scrollTo(0, 0);
         renderWorkoutDetailPage(params);
         setTimeout(updateActiveNav, 0);
     });
 
     Router.register('/history', () => {
+        window.scrollTo(0, 0);
         renderHistoryPage();
         setTimeout(updateActiveNav, 0);
     });
 
     Router.register('/settings', () => {
+        window.scrollTo(0, 0);
         renderSettingsPage();
         setTimeout(updateActiveNav, 0);
     });

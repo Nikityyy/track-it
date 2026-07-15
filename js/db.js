@@ -115,16 +115,26 @@ async function getWorkoutTypes() {
   const types = await dbGetAll(STORES.workoutTypes);
   if (types.length === 0) {
     const defaults = [
-      { id: uuid(), name: 'Push' },
-      { id: uuid(), name: 'Pull' },
-      { id: uuid(), name: 'Beine' },
-      { id: uuid(), name: 'Arme' },
-      { id: uuid(), name: 'Ganzkörper' }
+      { id: uuid(), name: 'Push', order: 1 },
+      { id: uuid(), name: 'Pull', order: 2 },
+      { id: uuid(), name: 'Beine', order: 3 },
+      { id: uuid(), name: 'Arme', order: 4 },
+      { id: uuid(), name: 'Ganzkörper', order: 5 }
     ];
     for (const t of defaults) await dbPut(STORES.workoutTypes, t);
     return defaults;
   }
-  return types;
+  let needsSave = false;
+  types.forEach((t, i) => {
+    if (typeof t.order !== 'number') {
+      t.order = i + 1;
+      needsSave = true;
+    }
+  });
+  if (needsSave) {
+    for (const t of types) await dbPut(STORES.workoutTypes, t);
+  }
+  return types.sort((a, b) => a.order - b.order);
 }
 
 async function saveWorkoutType(type) {
@@ -304,7 +314,8 @@ function normalizeWorkoutType(type) {
   if (!name) throw new Error('Workout-Typ ohne Namen gefunden');
   return {
     id: String(type.id || uuid()),
-    name
+    name,
+    order: typeof type.order === 'number' ? type.order : 999
   };
 }
 

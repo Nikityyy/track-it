@@ -8,6 +8,11 @@ function showToast(message, duration = 2500) {
         document.body.appendChild(container);
     }
 
+    // Limit active toasts to prevent stacking off-screen
+    while (container.children.length >= 3) {
+        container.removeChild(container.firstChild);
+    }
+
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
