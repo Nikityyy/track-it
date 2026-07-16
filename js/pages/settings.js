@@ -5,9 +5,6 @@ async function renderSettingsPage() {
 
   app.innerHTML = `
     <div class="page page-settings">
-
-  app.innerHTML = `
-    <div class="page page-settings">
       <h2 class="page-title">Einstellungen</h2>
 
       <!-- Workout Types -->
