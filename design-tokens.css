@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-theme="dark"] {
     --bg: #000000;
     --surface: #0a0a0a;
     --surface-2: #222222;
@@ -15,4 +16,90 @@
     --radius-sm: 6px;
     --radius-md: 8px;
     --space-1: 8px;
+
+    /* Semantic colors */
+    --color-accent: #6366f1;
+    --color-accent-hover: #4f46e5;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-info: #3b82f6;
+
+    /* Spacing scale */
+    --space-2xs: 2px;
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+    --space-2xl: 32px;
+
+    /* Browser native & UI controls */
+    color-scheme: dark;
+    --header-bg: rgba(0, 0, 0, 0.88);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+    /* GitHub Heatmap activity levels (theme accent-based) */
+    --github-l0: #161b22;
+    --github-l1: rgba(99, 102, 241, 0.28);
+    --github-l2: rgba(99, 102, 241, 0.55);
+    --github-l3: #6366f1;
+    --github-l4: #818cf8;
+}
+
+[data-theme="light"] {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --surface-hover: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-muted: #64748b;
+    --accent: #0f172a;
+    --accent-hover: #1e293b;
+    --muted-border: #e2e8f0;
+    --muted-border-hover: #cbd5e1;
+    --shadow: rgba(0, 0, 0, 0.08);
+    --focus: rgba(99, 102, 241, 0.15);
+
+    /* Browser native & UI controls */
+    color-scheme: light;
+    --header-bg: rgba(255, 255, 255, 0.88);
+    --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+
+    /* GitHub Heatmap activity levels (theme accent-based) */
+    --github-l0: #ebedf0;
+    --github-l1: #c7d2fe;
+    --github-l2: #818cf8;
+    --github-l3: #6366f1;
+    --github-l4: #4338ca;
+}
+
+[data-theme="oled"] {
+    --bg: #000000;
+    --surface: #050505;
+    --surface-2: #111111;
+    --surface-hover: #1c1c1c;
+    --text-primary: #f5f5f5;
+    --text-muted: #888888;
+    --accent: #f5f5f5;
+    --accent-hover: #ffffff;
+    --muted-border: #1a1a1a;
+    --muted-border-hover: #262626;
+    --shadow: rgba(0, 0, 0, 0.95);
+    --focus: rgba(255, 255, 255, 0.08);
+
+    /* Browser native & UI controls */
+    color-scheme: dark;
+    --header-bg: rgba(0, 0, 0, 0.95);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+    /* GitHub Heatmap activity levels (theme accent-based) */
+    --github-l0: #0d1117;
+    --github-l1: rgba(99, 102, 241, 0.28);
+    --github-l2: rgba(99, 102, 241, 0.55);
+    --github-l3: #6366f1;
+    --github-l4: #818cf8;
 }

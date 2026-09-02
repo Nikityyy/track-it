@@ -84,6 +84,7 @@ async function renderHomePage() {
       });
       const wAvg = wSets > 0 ? (wRpe / wSets).toFixed(1).replace('.0', '') : null;
       const accentColor = typeColors[w.type || 'Andere'] || 'var(--text-muted)';
+      const exCount = w.exercises ? w.exercises.length : 0;
 
       return `
         <a href="#/workout/${w.workoutId}" class="card workout-card-v2">
@@ -95,7 +96,7 @@ async function renderHomePage() {
             </div>
             <div class="workout-card-name">${escapeHtml(w.name)}</div>
             <div class="workout-card-chips">
-              <span class="chip">${icon('layers', 12)} ${w.exercises.length} ${w.exercises.length === 1 ? 'Übung' : 'Übungen'}</span>
+              <span class="chip">${icon('layers', 12)} ${exCount} ${exCount === 1 ? 'Übung' : 'Übungen'}</span>
               <span class="chip">${icon('hash', 12)} ${setCount} Sätze</span>
               ${wAvg ? `<span class="chip chip-rpe">RPE ${wAvg}</span>` : ''}
             </div>
@@ -109,9 +110,175 @@ async function renderHomePage() {
         <div class="empty-state-icon">${icon('dumbbell', 40)}</div>
         <p class="empty-state-text">Noch keine Workouts vorhanden.</p>
         <p class="empty-state-sub">Erstelle dein erstes Workout!</p>
+        <a href="#/create" class="btn btn-primary mt-2">Workout erstellen</a>
       </div>
     `;
   }
+
+  // --- Frequency Heatmap & Streak (F12) ---
+  const workoutDateMap = {};
+  workouts.forEach(w => {
+    const d = new Date(w.date);
+    if (!Number.isNaN(d.getTime())) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!workoutDateMap[key]) workoutDateMap[key] = [];
+      workoutDateMap[key].push(w);
+    }
+  });
+
+  // Calculate current active streak (consecutive days)
+  let streak = 0;
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+  let checkDate = new Date(now);
+  if (workoutDateMap[todayKey]) {
+    streak = 1;
+    checkDate.setDate(checkDate.getDate() - 1);
+  } else if (workoutDateMap[yesterdayKey]) {
+    streak = 1;
+    checkDate.setDate(checkDate.getDate() - 2);
+  }
+
+  if (streak > 0) {
+    while (true) {
+      const k = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+      if (workoutDateMap[k]) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+  }
+
+  // 20 Weeks (Monday to Sunday) - Horizontal GitHub-Style Contribution Graph
+  const weeksCount = 20;
+  const currMonday = new Date(now);
+  const currDay = currMonday.getDay();
+  const diffMon = currDay === 0 ? -6 : 1 - currDay;
+  currMonday.setDate(currMonday.getDate() + diffMon);
+  currMonday.setHours(0, 0, 0, 0);
+
+  // (weeksCount - 1) weeks prior to current Monday gives 20 full weeks
+  const startHeatmapDate = new Date(currMonday);
+  startHeatmapDate.setDate(startHeatmapDate.getDate() - (weeksCount - 1) * 7);
+
+  const heatmapDays = [];
+  const iterDate = new Date(startHeatmapDate);
+  const todayZero = new Date(now);
+  todayZero.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < weeksCount * 7; i++) {
+    const isoKey = `${iterDate.getFullYear()}-${String(iterDate.getMonth() + 1).padStart(2, '0')}-${String(iterDate.getDate()).padStart(2, '0')}`;
+    const dayWorkouts = workoutDateMap[isoKey] || [];
+    const isToday = iterDate.getTime() === todayZero.getTime();
+    const isFuture = iterDate.getTime() > todayZero.getTime();
+
+    const dayDateStr = `${String(iterDate.getDate()).padStart(2, '0')}.${String(iterDate.getMonth() + 1).padStart(2, '0')}.${iterDate.getFullYear()}`;
+    heatmapDays.push({
+      dateStr: dayDateStr,
+      isoKey,
+      count: dayWorkouts.length,
+      workouts: dayWorkouts,
+      isToday,
+      isFuture,
+      date: new Date(iterDate)
+    });
+    iterDate.setDate(iterDate.getDate() + 1);
+  }
+
+  // Month labels above week columns
+  const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const monthLabels = [];
+  let lastLabeledCol = -4;
+
+  for (let w = 0; w < weeksCount; w++) {
+    const weekStart = heatmapDays[w * 7].date;
+    const weekEnd = heatmapDays[w * 7 + 6].date;
+    const isFirstWeek = w === 0;
+    const monthChanged = weekStart.getMonth() !== weekEnd.getMonth();
+
+    if (isFirstWeek || monthChanged) {
+      if (w - lastLabeledCol >= 3) {
+        const targetMonth = monthChanged ? weekEnd.getMonth() : weekStart.getMonth();
+        monthLabels.push({
+          col: w + 1,
+          name: monthNames[targetMonth]
+        });
+        lastLabeledCol = w;
+      }
+    }
+  }
+
+  const monthsHtml = monthLabels.map(m => `<span class="github-month-label" style="grid-column: ${m.col};">${m.name}</span>`).join('');
+
+  const heatmapHtml = `
+    <div class="card heatmap-widget">
+      <div class="heatmap-header">
+        <div class="heatmap-title-group">
+          <h4 class="chart-title" style="margin: 0;">Aktivität</h4>
+          <span class="text-muted text-small">Letzte ${weeksCount} Wochen</span>
+        </div>
+        <div class="heatmap-streak" title="Aktueller Workout-Streak">
+          ${icon('flame', 14)}
+          <span>${streak} ${streak === 1 ? 'Tag' : 'Tage'} Streak</span>
+        </div>
+      </div>
+      <div class="github-graph-scroll">
+        <div class="github-graph">
+          <div class="github-months">
+            ${monthsHtml}
+          </div>
+          <div class="github-graph-body">
+            <div class="github-days heatmap-weekdays">
+              <span>Mo</span>
+              <span></span>
+              <span>Mi</span>
+              <span></span>
+              <span>Fr</span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="github-grid heatmap-grid">
+              ${heatmapDays.map(d => {
+                let levelClass = 'level-0';
+                if (d.count === 1) levelClass = 'level-1';
+                else if (d.count === 2) levelClass = 'level-2';
+                else if (d.count === 3) levelClass = 'level-3';
+                else if (d.count >= 4) levelClass = 'level-4';
+
+                let classes = `heatmap-cell ${levelClass}`;
+                if (d.count === 1) classes += ' has-workout';
+                if (d.count > 1) classes += ' has-multi-workout';
+                if (d.isFuture) classes += ' is-future';
+                if (d.isToday) classes += ' is-today';
+
+                const tooltip = d.count > 0
+                  ? `${d.dateStr}: ${d.workouts.map(w => w.name).join(', ')} (${d.count} ${d.count === 1 ? 'Workout' : 'Workouts'})`
+                  : `${d.dateStr}: Keine Workouts`;
+
+                return `<div class="${classes}" title="${escapeHtml(tooltip)}" data-date="${d.isoKey}"></div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="heatmap-footer">
+        <div class="heatmap-legend">
+          <span>Weniger</span>
+          <span class="heatmap-cell level-0 heatmap-legend-cell" title="0 Workouts"></span>
+          <span class="heatmap-cell level-1 heatmap-legend-cell" title="1 Workout"></span>
+          <span class="heatmap-cell level-2 heatmap-legend-cell" title="2 Workouts"></span>
+          <span class="heatmap-cell level-3 heatmap-legend-cell" title="3 Workouts"></span>
+          <span class="heatmap-cell level-4 heatmap-legend-cell" title="4+ Workouts"></span>
+          <span>Mehr</span>
+        </div>
+      </div>
+    </div>
+  `;
 
   // --- Stats section (only if we have data) ---
   let statsHtml = '';
@@ -131,6 +298,7 @@ async function renderHomePage() {
           <div class="stat-label">Ø RPE</div>
         </div>
       </div>
+      ${heatmapHtml}
       <div class="charts-row">
         <div class="chart-container">
           <h4 class="chart-title">Verteilung</h4>
@@ -181,17 +349,27 @@ async function renderHomePage() {
     Router.navigate(path);
   });
 
-  document.getElementById('discard-draft')?.addEventListener('click', async () => {
+  document.getElementById('discard-draft')?.addEventListener('click', () => {
     if (window.haptic) window.haptic.trigger('error');
-    await clearDraft();
-    document.getElementById('draft-banner')?.remove();
-    showToast('Entwurf verworfen');
+    showModal({
+      title: 'Entwurf verwerfen',
+      bodyText: 'Möchtest du den gespeicherten Entwurf wirklich verwerfen?',
+      confirmText: 'Verwerfen',
+      cancelText: 'Abbrechen',
+      danger: true,
+      onConfirm: async () => {
+        if (window.haptic) window.haptic.trigger('success');
+        await clearDraft();
+        document.getElementById('draft-banner')?.remove();
+        showToast('Entwurf verworfen');
+      }
+    });
   });
 
   // --- Draw charts ---
   if (totalWorkouts > 0) {
-    drawDoughnutChart('doughnut-chart', 'doughnut-legend', typeCounts, typeColors);
-    drawBarChart('bar-chart', weeklyData);
+    renderDoughnutChart('doughnut-chart', 'doughnut-legend', typeCounts, typeColors);
+    renderBarChart('bar-chart', weeklyData);
   }
 }
 
@@ -203,14 +381,14 @@ function generateTypeColors(types) {
     '#0ea5e9', '#84cc16', '#a855f7', '#6366f1'
   ];
   const map = {};
-  types.forEach((t, i) => {
+  (types || []).forEach((t, i) => {
     map[t] = palette[i % palette.length];
   });
   return map;
 }
 
-// ── Doughnut Chart (Canvas) ──
-function drawDoughnutChart(canvasId, legendId, data, colorMap) {
+// ── Doughnut Chart (Canvas) - Theme Adaptive (D6) ──
+function renderDoughnutChart(canvasId, legendId, data, colorMap) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -226,6 +404,10 @@ function drawDoughnutChart(canvasId, legendId, data, colorMap) {
   const entries = Object.entries(data);
   const total = entries.reduce((s, [, v]) => s + v, 0);
   if (total === 0) return;
+
+  const styles = getComputedStyle(document.documentElement);
+  const textPrimary = styles.getPropertyValue('--text-primary').trim() || '#ededed';
+  const textMuted = styles.getPropertyValue('--text-muted').trim() || '#888888';
 
   const cx = w / 2;
   const cy = h / 2;
@@ -247,14 +429,14 @@ function drawDoughnutChart(canvasId, legendId, data, colorMap) {
     startAngle += sliceAngle;
   });
 
-  // Center text
-  ctx.fillStyle = '#fff';
+  // Center text (theme-adaptive)
+  ctx.fillStyle = textPrimary;
   ctx.font = '700 20px Inter, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(total, cx, cy - 6);
   ctx.font = '400 10px Inter, system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillStyle = textMuted;
   ctx.fillText('Workouts', cx, cy + 10);
 
   // Legend
@@ -267,9 +449,10 @@ function drawDoughnutChart(canvasId, legendId, data, colorMap) {
     }).join('');
   }
 }
+const drawDoughnutChart = renderDoughnutChart;
 
-// ── Bar Chart (Canvas) ──
-function drawBarChart(canvasId, data) {
+// ── Bar Chart (Canvas) - Theme Adaptive (D6) ──
+function renderBarChart(canvasId, data) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -281,6 +464,13 @@ function drawBarChart(canvasId, data) {
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
   ctx.scale(dpr, dpr);
+
+  const styles = getComputedStyle(document.documentElement);
+  const textPrimary = styles.getPropertyValue('--text-primary').trim() || '#ededed';
+  const textMuted = styles.getPropertyValue('--text-muted').trim() || '#888888';
+  const surface2 = styles.getPropertyValue('--surface-2').trim() || '#222222';
+  const colorAccent = styles.getPropertyValue('--color-accent').trim() || '#6366f1';
+  const colorAccentHover = styles.getPropertyValue('--color-accent-hover').trim() || '#4f46e5';
 
   const maxVal = Math.max(...data.map(d => d.count), 1);
   const padding = { top: 24, right: 10, bottom: 28, left: 10 };
@@ -304,40 +494,40 @@ function drawBarChart(canvasId, data) {
     ctx.lineTo(x, padding.top + chartH);
     ctx.closePath();
 
-    // Gradient fill
+    // Gradient fill using theme accent
     const isCurrentWeek = i === data.length - 1;
     if (d.count > 0) {
       const grad = ctx.createLinearGradient(x, y, x, padding.top + chartH);
       if (isCurrentWeek) {
-        grad.addColorStop(0, '#6366f1');
-        grad.addColorStop(1, '#4338ca');
+        grad.addColorStop(0, colorAccent);
+        grad.addColorStop(1, colorAccentHover);
       } else {
-        grad.addColorStop(0, 'rgba(99, 102, 241, 0.5)');
-        grad.addColorStop(1, 'rgba(99, 102, 241, 0.2)');
+        grad.addColorStop(0, colorAccent);
+        grad.addColorStop(1, surface2);
       }
       ctx.fillStyle = grad;
     } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
-      // Draw a tiny placeholder bar
+      ctx.fillStyle = surface2;
       ctx.beginPath();
       ctx.rect(x, padding.top + chartH - 2, barW, 2);
     }
     ctx.fill();
 
-    // Count label
+    // Count label (theme-adaptive)
     if (d.count > 0) {
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = textPrimary;
       ctx.font = '600 11px Inter, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillText(d.count, x + barW / 2, y - 3);
     }
 
-    // X-axis label
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    // X-axis label (theme-adaptive)
+    ctx.fillStyle = textMuted;
     ctx.font = '400 9px Inter, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(d.label, x + barW / 2, padding.top + chartH + 6);
   });
 }
+const drawBarChart = renderBarChart;

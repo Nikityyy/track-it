@@ -67,6 +67,12 @@ assert.equal(normalized.workouts[0].exercises[0].sets[0].breakSeconds, 0);
 assert.equal(normalized.workouts[0].exercises[0].sets[0].skipped, false);
 assert.equal(normalized.workouts[0].finisher.name, 'Carry');
 assert.equal(normalized.workouts[0].finisher.entries[0].sets[0].breakSeconds, 0);
+assert.equal(normalized.workouts[0].notes, '');
+
+const normalizedWithNotes = context.validateAndNormalizeImportData({
+  workouts: [{ ...oldWorkout, notes: 'Felt very strong' }]
+});
+assert.equal(normalizedWithNotes.workouts[0].notes, 'Felt very strong');
 
 assert.throws(
   () => context.validateAndNormalizeImportData({ workouts: 'nope' }),

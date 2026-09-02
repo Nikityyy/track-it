@@ -1,4 +1,4 @@
-function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, onConfirm, danger }) {
+function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, onConfirm, onCancel, danger }) {
   const existing = document.querySelector('.modal-overlay');
   if (existing) existing.remove();
 
@@ -23,7 +23,7 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
   `;
 
   const modalBody = overlay.querySelector('.modal-body');
-  if (body instanceof Node) {
+  if (typeof Node !== 'undefined' && body instanceof Node) {
     modalBody.appendChild(body);
   } else if (bodyHtml !== undefined) {
     modalBody.innerHTML = bodyHtml;
@@ -46,19 +46,29 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
     }, { once: true });
   };
 
-  overlay.querySelector('.modal-close').addEventListener('click', close);
-  overlay.querySelector('.modal-cancel').addEventListener('click', close);
+  overlay.querySelector('.modal-close').addEventListener('click', () => {
+    if (onCancel) onCancel();
+    close();
+  });
+  overlay.querySelector('.modal-cancel').addEventListener('click', () => {
+    if (onCancel) onCancel();
+    close();
+  });
   overlay.querySelector('.modal-confirm').addEventListener('click', () => {
     if (onConfirm) onConfirm();
     close();
   });
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) close();
+    if (e.target === overlay) {
+      if (onCancel) onCancel();
+      close();
+    }
   });
 
   // Focus trap
   overlay.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' || e.keyCode === 27) {
+        if (onCancel) onCancel();
         close();
         return;
     }
@@ -86,5 +96,9 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
     }
   });
 
-  overlay.querySelector('.modal-confirm').focus();
+  if (danger) {
+    overlay.querySelector('.modal-cancel').focus();
+  } else {
+    overlay.querySelector('.modal-confirm').focus();
+  }
 }

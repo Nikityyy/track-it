@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    // Init theme
+    const savedTheme = localStorage.getItem('trackit-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
     // Init DB
     await openDB();
 
@@ -20,14 +24,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.scrollTo(0, 0);
         renderCreateWorkoutPage({});
         setTimeout(updateActiveNav, 0);
-        return () => stopAutoDraft();
+        return () => {
+            stopAutoDraft();
+            if (typeof pauseActiveRestTimer === 'function') pauseActiveRestTimer(false);
+        };
     });
 
     Router.register('/edit/:id', (params) => {
         window.scrollTo(0, 0);
         renderCreateWorkoutPage(params);
         setTimeout(updateActiveNav, 0);
-        return () => stopAutoDraft();
+        return () => {
+            stopAutoDraft();
+            if (typeof pauseActiveRestTimer === 'function') pauseActiveRestTimer(false);
+        };
     });
 
     Router.register('/workout/:id', (params) => {

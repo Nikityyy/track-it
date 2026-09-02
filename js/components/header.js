@@ -3,7 +3,7 @@ function renderHeader() {
     <header class="app-header">
       <div class="header-inner">
         <a href="#/" class="header-brand" aria-label="Track It! Startseite">
-          <span class="header-icon"><img src="icons/icon-512.png" alt="Track It! Icon" width="22" height="22"></span>
+          <span class="header-icon"><img src="icons/icon-512.png" alt="Track It! Icon" width="24" height="24"></span>
           <span class="header-title">Track It!</span>
         </a>
         <nav class="header-nav" aria-label="Hauptnavigation">

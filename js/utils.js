@@ -180,6 +180,19 @@ function rebuildSetLabels(exercise) {
     });
 }
 
+function generateTypeColors(types) {
+    const palette = [
+        '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+        '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
+        '#0ea5e9', '#84cc16', '#a855f7', '#6366f1'
+    ];
+    const map = {};
+    (types || []).forEach((t, i) => {
+        map[t] = palette[i % palette.length];
+    });
+    return map;
+}
+
 function escapeHtml(str) {
     if (str == null) return '';
     return String(str)
@@ -286,3 +299,8 @@ const Router = {
         this._resolve();
     }
 };
+
+if (typeof window !== 'undefined') {
+    window.Router = Router;
+}
+

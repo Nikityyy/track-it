@@ -1,10 +1,12 @@
-const CACHE_NAME = 'trackit-cache-v7';
+const CACHE_NAME = 'trackit-cache-v8';
 
 const PRECACHE_URLS = [
     './',
     './index.html',
     './design-tokens.css',
     './css/styles.css',
+    './vendor/lucide.min.js',
+    './vendor/web-haptics.js',
     './js/db.js',
     './js/utils.js',
     './js/markdown.js',
@@ -47,7 +49,7 @@ self.addEventListener('activate', (e) => {
     );
 });
 
-// Fetch — Network-first, then cache
+// Fetch — Stale-While-Revalidate for same-origin static assets to prevent hangs on weak networks
 self.addEventListener('fetch', (e) => {
     // Skip non-GET
     if (e.request.method !== 'GET') return;
@@ -56,24 +58,50 @@ self.addEventListener('fetch', (e) => {
     if (!e.request.url.startsWith(self.location.origin)) return;
 
     e.respondWith(
-        fetch(e.request).then(response => {
-            // Cache successful responses
-            if (response.status === 200 || response.type === 'opaque') {
-                const clone = response.clone();
-                caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        caches.open(CACHE_NAME).then(async (cache) => {
+            const cachedResponse = await cache.match(e.request);
+
+            // Revalidate / fetch in background (or foreground if not cached)
+            const networkFetch = fetch(e.request)
+                .then((networkResponse) => {
+                    if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+                        cache.put(e.request, networkResponse.clone());
+                    }
+                    return networkResponse;
+                })
+                .catch(() => {
+                    if (e.request.mode === 'navigate') {
+                        return cache.match('./index.html');
+                    }
+                    return null;
+                });
+
+            // If found in cache, return immediately (fast, resilient against weak networks)
+            if (cachedResponse) {
+                try { e.waitUntil(networkFetch); } catch {}
+                return cachedResponse;
             }
-            return response;
-        }).catch(() => {
-            // Fallback to cache
-            return caches.match(e.request).then(cached => {
-                if (cached) return cached;
-                // Fallback for navigation requests
-                if (e.request.mode === 'navigate') {
-                    return caches.match('./index.html');
+
+            // Navigation fallback if requested URL path was not exact match in cache
+            if (e.request.mode === 'navigate') {
+                const navCached = await cache.match('./index.html') || await cache.match('./');
+                if (navCached) {
+                    try { e.waitUntil(networkFetch); } catch {}
+                    return navCached;
                 }
-                // Must return a Response object to avoid undefined promise rejection
-                return Response.error();
-            });
+            }
+
+            // If not cached, await network response
+            const response = await networkFetch;
+            if (response) return response;
+
+            // Final offline fallback for navigation requests
+            if (e.request.mode === 'navigate') {
+                const fallback = await cache.match('./index.html') || await cache.match('./');
+                if (fallback) return fallback;
+            }
+
+            return Response.error();
         })
     );
 });

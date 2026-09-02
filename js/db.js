@@ -1,5 +1,5 @@
 const DB_NAME = 'trackit-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
   workouts: 'workouts',
@@ -10,14 +10,33 @@ const STORES = {
 
 let _db = null;
 
+function requestStoragePersistence() {
+  if (typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.persist === 'function') {
+    navigator.storage.persist().catch(() => {});
+  }
+}
+
 function openDB() {
   if (_db) return Promise.resolve(_db);
+  requestStoragePersistence();
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
+      const tx = req.transaction || e.target.transaction;
+      let workoutStore;
       if (!db.objectStoreNames.contains(STORES.workouts)) {
-        db.createObjectStore(STORES.workouts, { keyPath: 'workoutId' });
+        workoutStore = db.createObjectStore(STORES.workouts, { keyPath: 'workoutId' });
+      } else if (tx) {
+        workoutStore = tx.objectStore(STORES.workouts);
+      }
+      if (workoutStore) {
+        if (!workoutStore.indexNames.contains('by_date')) {
+          workoutStore.createIndex('by_date', 'date', { unique: false });
+        }
+        if (!workoutStore.indexNames.contains('by_type')) {
+          workoutStore.createIndex('by_type', 'type', { unique: false });
+        }
       }
       if (!db.objectStoreNames.contains(STORES.workoutTypes)) {
         db.createObjectStore(STORES.workoutTypes, { keyPath: 'id' });
@@ -170,7 +189,7 @@ async function exportAllData() {
   };
 }
 
-async function importAllData(data) {
+async function importAllData(data, options = {}) {
   const analysis = analyzeImportData(data);
   if (analysis.errors.length > 0) {
     throw new Error(`Import enthält ${analysis.summary.rejected} ungültige Einträge und wurde nicht gestartet`);
@@ -186,13 +205,53 @@ async function importAllData(data) {
     data: backup
   });
 
+  const db = await openDB();
   try {
-    await dbClear(STORES.workouts);
-    await dbClear(STORES.workoutTypes);
-    for (const t of normalized.workoutTypes) await dbPut(STORES.workoutTypes, t);
-    for (const w of normalized.workouts) await dbPut(STORES.workouts, w);
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction([STORES.workouts, STORES.workoutTypes], 'readwrite');
+      const workoutStore = tx.objectStore(STORES.workouts);
+      const typeStore = tx.objectStore(STORES.workoutTypes);
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Transaktion abgebrochen'));
+
+      if (!options.merge) {
+        workoutStore.clear();
+        typeStore.clear();
+        for (const t of normalized.workoutTypes) typeStore.put(t);
+        for (const w of normalized.workouts) workoutStore.put(w);
+      } else {
+        const existingWorkoutIds = new Set((backup.workouts || []).map(w => w.workoutId));
+        const existingTypeNames = new Set((backup.workoutTypes || []).map(t => String(t.name).trim().toLowerCase()));
+        const existingTypeIds = new Set((backup.workoutTypes || []).map(t => t.id));
+
+        for (const t of normalized.workoutTypes) {
+          const typeNameKey = String(t.name).trim().toLowerCase();
+          if (existingTypeNames.has(typeNameKey)) {
+            continue;
+          }
+          if (existingTypeIds.has(t.id)) {
+            t.id = uuid();
+          }
+          existingTypeIds.add(t.id);
+          existingTypeNames.add(typeNameKey);
+          typeStore.put(t);
+        }
+
+        for (const w of normalized.workouts) {
+          if (existingWorkoutIds.has(w.workoutId)) {
+            w.workoutId = uuid();
+          }
+          existingWorkoutIds.add(w.workoutId);
+          workoutStore.put(w);
+        }
+      }
+    });
   } catch (err) {
-    await restoreImportBackup(backup);
+    if (!options.merge) {
+      await restoreImportBackup(backup);
+    }
     throw new Error('Import fehlgeschlagen. Vorherige Daten wurden wiederhergestellt: ' + err.message);
   }
 }
@@ -205,6 +264,7 @@ async function getLastImportBackup() {
 function migrateWorkout(w) {
   if (!w || typeof w !== 'object') return;
   if (!w.workoutId) w.workoutId = uuid();
+  if (w.notes === undefined) w.notes = '';
   if (!w.createdAt) w.createdAt = w.date || new Date().toISOString();
   if (!w.date) w.date = w.createdAt;
   if (!w.updatedAt) w.updatedAt = w.createdAt;
@@ -246,10 +306,21 @@ function migrateSet(set, index, mode) {
 }
 
 async function restoreImportBackup(backup) {
-  await dbClear(STORES.workouts);
-  await dbClear(STORES.workoutTypes);
-  for (const t of backup.workoutTypes || []) await dbPut(STORES.workoutTypes, t);
-  for (const w of backup.workouts || []) await dbPut(STORES.workouts, w);
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORES.workouts, STORES.workoutTypes], 'readwrite');
+    const workoutStore = tx.objectStore(STORES.workouts);
+    const typeStore = tx.objectStore(STORES.workoutTypes);
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Wiederherstellung abgebrochen'));
+
+    workoutStore.clear();
+    typeStore.clear();
+    for (const t of backup.workoutTypes || []) typeStore.put(t);
+    for (const w of backup.workouts || []) workoutStore.put(w);
+  });
 }
 
 function validateAndNormalizeImportData(data) {
@@ -329,6 +400,7 @@ function normalizeWorkout(workout) {
     type: String(workout.type || ''),
     name: String(workout.name || workout.type || 'Workout'),
     date,
+    notes: String(workout.notes || ''),
     exercises: normalizeExercises(workout.exercises),
     finisher: normalizeFinisher(workout.finisher),
     createdAt,

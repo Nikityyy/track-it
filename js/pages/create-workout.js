@@ -127,7 +127,7 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
             <button type="button" class="btn btn-ghost btn-sm" id="add-exercise">${icon('plus', 14)} Übung hinzufügen</button>
           </div>
           <div id="exercises-container">
-            ${workout.exercises.map((ex, i) => renderExerciseCard(ex, i)).join('')}
+            ${workout.exercises.map((ex, i) => renderExerciseCard(ex, i, workout.exercises.length)).join('')}
           </div>
           <button type="button" class="btn btn-ghost btn-sm w-full mt-2" id="add-exercise-bottom">${icon('plus', 14)} Übung hinzufügen</button>
         </div>
@@ -145,7 +145,14 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
           </div>
         </div>
 
-        <div class="form-actions">
+        <div class="form-section">
+          <div class="section-header">
+            <h3 class="section-title">Notizen</h3>
+          </div>
+          <textarea id="workout-notes" class="input" placeholder="Notizen zum Workout (optional)..." rows="3">${escapeHtml(workout.notes || '')}</textarea>
+        </div>
+
+        <div class="form-actions form-actions-sticky">
           <button type="button" class="btn btn-ghost" id="btn-undo" disabled>${icon('undo', 16)} Undo</button>
           <button type="button" class="btn btn-ghost" id="btn-redo" disabled>${icon('redo', 16)} Redo</button>
           <button type="button" class="btn btn-ghost" id="btn-cancel">Abbrechen</button>
@@ -157,15 +164,20 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
 
   bindFormEvents(workout);
   if (options.resetHistory) initFormHistory(workout, options.formHistory);
+  updateExerciseIndices();
   updateSetDeleteStates();
   updateUndoRedoButtons();
 }
 
-function renderExerciseCard(exercise, index) {
+function renderExerciseCard(exercise, index, totalCount = 1) {
+  const isTop = index === 0;
+  const isBottom = index === totalCount - 1;
   return `
     <div class="card exercise-card" data-exercise-id="${escapeHtml(exercise.exerciseId)}" data-index="${index}">
       <div class="exercise-card-header">
         <input type="text" class="input exercise-name" value="${escapeHtml(exercise.name)}" placeholder="Übungsname" aria-label="Übungsname">
+        <button type="button" class="btn-icon exercise-move-up${isTop ? ' disabled' : ''}" aria-label="Nach oben verschieben" title="Nach oben"${isTop ? ' disabled aria-disabled="true"' : ''}>${icon('chevronUp', 16)}</button>
+        <button type="button" class="btn-icon exercise-move-down${isBottom ? ' disabled' : ''}" aria-label="Nach unten verschieben" title="Nach unten"${isBottom ? ' disabled aria-disabled="true"' : ''}>${icon('chevronDown', 16)}</button>
         <button type="button" class="btn-icon btn-danger-icon remove-exercise" aria-label="Übung entfernen">${icon('trash', 16)}</button>
       </div>
       <div class="exercise-mode-toggle">
@@ -324,7 +336,8 @@ function bindFormEvents(workout) {
   const addExercise = () => {
     window._hasUnsavedChanges = true;
     const container = document.getElementById('exercises-container');
-    container.insertAdjacentHTML('beforeend', renderExerciseCard(createEmptyExercise(), container.children.length));
+    container.insertAdjacentHTML('beforeend', renderExerciseCard(createEmptyExercise(), container.children.length, container.children.length + 1));
+    updateExerciseIndices();
     if (window.haptic) window.haptic.trigger(40);
     recordFormHistory();
   };
@@ -366,11 +379,38 @@ function bindFormEvents(workout) {
     const card = e.target.closest('.exercise-card');
     if (!card) return;
 
+    const moveUpBtn = e.target.closest('.exercise-move-up');
+    if (moveUpBtn && !moveUpBtn.disabled && !moveUpBtn.classList.contains('disabled')) {
+      const prev = card.previousElementSibling;
+      if (prev && prev.classList.contains('exercise-card')) {
+        card.parentElement.insertBefore(card, prev);
+        window._hasUnsavedChanges = true;
+        if (window.haptic) window.haptic.trigger(20);
+        updateExerciseIndices();
+        recordFormHistory();
+      }
+      return;
+    }
+
+    const moveDownBtn = e.target.closest('.exercise-move-down');
+    if (moveDownBtn && !moveDownBtn.disabled && !moveDownBtn.classList.contains('disabled')) {
+      const next = card.nextElementSibling;
+      if (next && next.classList.contains('exercise-card')) {
+        card.parentElement.insertBefore(next, card);
+        window._hasUnsavedChanges = true;
+        if (window.haptic) window.haptic.trigger(20);
+        updateExerciseIndices();
+        recordFormHistory();
+      }
+      return;
+    }
+
     if (e.target.closest('.remove-exercise')) {
       confirmRemove('Übung entfernen', 'Diese Übung wirklich entfernen?', () => {
         const container = document.getElementById('exercises-container');
         if (container.children.length > 1) {
           card.remove();
+          updateExerciseIndices();
           recordFormHistory();
         } else {
           showToast('Mindestens eine Übung erforderlich');
@@ -396,10 +436,23 @@ function bindFormEvents(workout) {
     const removeSetBtn = e.target.closest('.remove-set');
     if (removeSetBtn && !removeSetBtn.disabled) {
       const row = removeSetBtn.closest('.set-row');
-      confirmRemove('Satz entfernen', 'Diesen Satz wirklich entfernen?', () => {
+      const set = collectSetFromRow(row);
+      const isDefault = (set.reps === 0 || set.reps === '0') &&
+        (set.rpe === 5 || set.rpe === '5') &&
+        (set.breakSeconds === 0 || set.breakSeconds === '0') &&
+        !set.note;
+
+      if (isDefault) {
+        if (window.haptic) window.haptic.trigger(40);
         removeSetFromCard(card, row);
         recordFormHistory();
-      });
+      } else {
+        confirmRemove('Satz entfernen', 'Diesen Satz wirklich entfernen?', () => {
+          removeSetFromCard(card, row);
+          recordFormHistory();
+        });
+      }
+      return;
     }
   });
 
@@ -421,16 +474,33 @@ function bindFormEvents(workout) {
   if (document.querySelector('.finisher-block')) bindFinisherEvents();
 
   document.getElementById('btn-cancel').addEventListener('click', async () => {
-    pauseActiveRestTimer(false);
-    stopAutoDraft(false);
-    window._hasUnsavedChanges = false;
-    Router.onBeforeNavigate = null;
-    if (form.dataset.isEdit === 'true') {
+    const draft = await getDraft();
+    const hasActiveDraftOrChanges = window._hasUnsavedChanges || (draft && draft.workout);
+
+    const performCancel = async () => {
+      pauseActiveRestTimer(false);
+      stopAutoDraft(false);
+      window._hasUnsavedChanges = false;
+      Router.onBeforeNavigate = null;
       await clearDraft();
-      Router.navigate('/workout/' + form.dataset.editId);
+      if (form.dataset.isEdit === 'true') {
+        Router.navigate('/workout/' + form.dataset.editId);
+      } else {
+        Router.navigate('/');
+      }
+    };
+
+    if (hasActiveDraftOrChanges) {
+      showModal({
+        title: 'Entwurf verwerfen?',
+        bodyText: 'Möchtest du die ungespeicherten Änderungen wirklich verwerfen oder weiter bearbeiten?',
+        confirmText: 'Verwerfen',
+        cancelText: 'Weiter bearbeiten',
+        danger: true,
+        onConfirm: performCancel
+      });
     } else {
-      await clearDraft();
-      Router.navigate('/');
+      await performCancel();
     }
   });
 
@@ -528,10 +598,46 @@ function bindFinisherEvents() {
     const removeSetBtn = e.target.closest('.remove-set');
     if (removeSetBtn && !removeSetBtn.disabled) {
       const row = removeSetBtn.closest('.set-row');
-      confirmRemove('Satz entfernen', 'Diesen Satz wirklich entfernen?', () => {
+      const set = collectSetFromRow(row);
+      const isDefault = (set.reps === 0 || set.reps === '0') &&
+        (set.rpe === 5 || set.rpe === '5') &&
+        (set.breakSeconds === 0 || set.breakSeconds === '0') &&
+        !set.note;
+
+      if (isDefault) {
+        if (window.haptic) window.haptic.trigger(40);
         removeSetFromCard(row.closest('.finisher-entry'), row);
         recordFormHistory();
-      });
+      } else {
+        confirmRemove('Satz entfernen', 'Diesen Satz wirklich entfernen?', () => {
+          removeSetFromCard(row.closest('.finisher-entry'), row);
+          recordFormHistory();
+        });
+      }
+    }
+  });
+}
+
+function updateExerciseIndices() {
+  const cards = document.querySelectorAll('#exercises-container .exercise-card');
+  const total = cards.length;
+  cards.forEach((c, idx) => {
+    c.dataset.index = idx;
+    const upBtn = c.querySelector('.exercise-move-up');
+    const downBtn = c.querySelector('.exercise-move-down');
+    if (upBtn) {
+      const isTop = idx === 0;
+      upBtn.disabled = isTop;
+      upBtn.classList.toggle('disabled', isTop);
+      if (isTop) upBtn.setAttribute('aria-disabled', 'true');
+      else upBtn.removeAttribute('aria-disabled');
+    }
+    if (downBtn) {
+      const isBottom = idx === total - 1;
+      downBtn.disabled = isBottom;
+      downBtn.classList.toggle('disabled', isBottom);
+      if (isBottom) downBtn.setAttribute('aria-disabled', 'true');
+      else downBtn.removeAttribute('aria-disabled');
     }
   });
 }
@@ -737,6 +843,7 @@ function collectWorkoutFromForm() {
       document.getElementById('workout-time').value,
       originalDate
     ),
+    notes: document.getElementById('workout-notes')?.value.trim() || '',
     exercises,
     finisher,
     createdAt,
