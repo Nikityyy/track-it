@@ -38,7 +38,10 @@ button {
 
 input,
 select,
-textarea {
+textarea,
+.input,
+.select,
+.stepper__input {
     font-family: inherit;
     font-size: 16px;
     color: inherit;
@@ -349,7 +352,6 @@ textarea {
 /* ── Touch Hitboxes (minimum 44x44px target) ── */
 .btn-icon::after,
 .nav-link::after,
-.stepper__btn::after,
 .remove-set::after,
 .skip-btn::after {
     content: '';
@@ -359,6 +361,19 @@ textarea {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    pointer-events: auto;
+}
+
+/* Stepper button hitboxes: expand vertically for comfortable touch target without bleeding horizontally into input or adjacent button */
+.stepper__btn::after {
+    content: '';
+    position: absolute;
+    min-height: 44px;
+    min-width: 100%;
+    width: 100%;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
     pointer-events: auto;
 }
 
@@ -381,6 +396,7 @@ textarea {
     border: 1px solid var(--muted-border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
+    font-size: 16px;
     line-height: 1.5;
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
@@ -454,6 +470,7 @@ input[type="number"]::-webkit-outer-spin-button {
     position: relative;
     display: flex;
     align-items: stretch;
+    height: 36px;
     border: 1px solid var(--muted-border);
     border-radius: var(--radius-sm);
     background: var(--surface);
@@ -469,16 +486,17 @@ input[type="number"]::-webkit-outer-spin-button {
 .stepper__btn {
     position: relative;
     flex-shrink: 0;
-    width: 28px;
+    width: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: 600;
     line-height: 1;
     cursor: pointer;
     user-select: none;
-    transition: color 0.12s, background 0.12s, opacity 0.1s;
+    transition: color 0.12s, background 0.12s, opacity 0.1s, transform 0.08s;
     background: transparent;
     border: none;
     padding: 0;
@@ -491,7 +509,9 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .stepper__btn:active {
     background: var(--surface-hover);
-    opacity: 0.8;
+    color: var(--color-accent);
+    transform: scale(0.92);
+    opacity: 0.9;
 }
 
 .stepper__input {
@@ -504,8 +524,9 @@ input[type="number"]::-webkit-outer-spin-button {
     border: none;
     border-left: 1px solid var(--muted-border);
     border-right: 1px solid var(--muted-border);
-    padding: calc(var(--space-1) * 0.5) 4px;
+    padding: 0 4px;
     font-size: 16px;
+    font-weight: 600;
     color: var(--text-primary);
     outline: none;
     font-family: inherit;
@@ -989,7 +1010,7 @@ select option {
     border: none;
     background: var(--surface-2);
     border-radius: var(--radius-sm);
-    height: 32px;
+    height: 36px;
     overflow: visible;
 }
 
@@ -999,8 +1020,10 @@ select option {
 
 .stepper-minimal .stepper__btn {
     color: var(--text-muted);
-    width: 26px;
-    font-size: 16px;
+    width: 32px;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1;
 }
 
 .stepper-minimal .stepper__btn:hover {
@@ -1008,24 +1031,35 @@ select option {
     background: var(--surface-hover);
 }
 
+.stepper-minimal .stepper__btn:active {
+    background: var(--surface-hover);
+    color: var(--color-accent);
+    transform: scale(0.92);
+}
+
 .stepper-minimal .stepper__input {
     border: none;
     font-weight: 600;
     background: transparent;
     font-size: 16px;
-    padding: 0;
+    text-align: center;
+    padding: 0 2px;
     position: relative;
     z-index: 1;
 }
 
 .stepper-sm .stepper__btn {
-    width: 26px;
-    font-size: 16px;
+    width: 32px;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1;
 }
 
 .stepper-sm .stepper__input {
     font-size: 16px;
-    padding: 0;
+    font-weight: 600;
+    text-align: center;
+    padding: 0 2px;
     position: relative;
     z-index: 1;
 }
@@ -1164,6 +1198,7 @@ select option {
 
 .finisher-entry-header .finisher-entry-name {
     flex: 1;
+    font-size: 16px;
 }
 
 /* ── Settings Page ── */
@@ -1213,6 +1248,7 @@ select option {
 
 .type-item .type-input {
     flex: 1;
+    font-size: 16px;
 }
 
 .about-info {
@@ -1731,7 +1767,7 @@ a:focus-visible {
     }
 
     .stepper-break .stepper__input {
-        min-width: 30px;
+        min-width: 32px;
     }
 
     .set-row > .set-actions {
@@ -1752,17 +1788,34 @@ a:focus-visible {
     }
 
     .stepper-minimal {
-        height: 28px;
+        height: 34px;
     }
 
+    .stepper__btn,
+    .stepper-minimal .stepper__btn,
     .stepper-sm .stepper__btn {
-        width: 18px;
-        font-size: 14px;
+        width: 28px;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1;
     }
 
+    .stepper__input,
+    .stepper-minimal .stepper__input,
     .stepper-sm .stepper__input {
-        font-size: 14px;
+        font-size: 16px;
+        font-weight: 600;
+        text-align: center;
         padding: 0 1px;
+    }
+
+    input,
+    select,
+    textarea,
+    .input,
+    .select,
+    .stepper__input {
+        font-size: 16px;
     }
 
     /* Mobile Sticky Save Bar (D12) */
@@ -1791,6 +1844,18 @@ a:focus-visible {
     .form-actions-sticky #btn-redo {
         flex: 0 0 auto;
         padding: calc(var(--space-xs) * 1.5) var(--space-sm);
+    }
+}
+
+@media (max-width: 360px) {
+    .exercise-card {
+        padding: 12px 6px;
+    }
+    .sets-header {
+        gap: 3px;
+    }
+    .set-row {
+        gap: 3px;
     }
 }
 

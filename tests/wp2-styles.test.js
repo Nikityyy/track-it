@@ -70,6 +70,14 @@ assert(stylesCss.includes('.remove-set::after'), 'Missing .remove-set::after hit
 assert(stylesCss.includes('.skip-btn::after'), 'Missing .skip-btn::after hitbox');
 assert(stylesCss.includes('min-width: 44px;'), 'Missing min-width: 44px hitbox');
 assert(stylesCss.includes('min-height: 44px;'), 'Missing min-height: 44px hitbox');
+// Touch Hitbox Bleed / Overlap prevention for stepper buttons
+assert(
+  stylesCss.includes('.stepper__btn::after') &&
+  stylesCss.includes('min-width: 100%;') &&
+  stylesCss.includes('width: 100%;') &&
+  stylesCss.includes('transform: translateY(-50%);'),
+  'Stepper button hitbox should be constrained vertically without horizontal bleed'
+);
 
 console.log('✓ Touch hitboxes verified successfully');
 
@@ -77,6 +85,25 @@ console.log('✓ Touch hitboxes verified successfully');
 assert(stylesCss.includes('.stepper-break .stepper__input'), 'Missing .stepper-break .stepper__input sizing');
 assert(/\.sets-header-col:nth-child\(5\)\s*\{\s*display:\s*none;/.test(stylesCss), 'Missing mobile sets-header-col 5 hidden');
 assert(stylesCss.includes('/* Fluid Set Rows on Mobile (U6 & D4) */'), 'Missing mobile fluid set row block');
+// Desktop stepper dimensions and active tap feedback
+assert(stylesCss.includes('width: 32px;'), 'Missing desktop stepper button 32px width');
+assert(stylesCss.includes('transform: scale(0.92);'), 'Missing stepper button tap active feedback');
+// Mobile stepper dimensions and input font size
+assert(/height:\s*34px;/.test(stylesCss), 'Missing mobile stepper height 34px');
+assert(/width:\s*28px;/.test(stylesCss), 'Missing mobile stepper button width 28px');
+assert(!/stepper-sm\s+\.stepper__input\s*\{[^}]*font-size:\s*14px;/.test(stylesCss), 'Old 14px stepper input size should not exist');
+assert(/stepper-sm\s+\.stepper__input\s*\{[^}]*font-size:\s*16px;/.test(stylesCss), 'Mobile stepper input must be at least 16px');
+assert(stylesCss.includes('@media (max-width: 360px)'), 'Missing narrow mobile screen optimization for <= 360px');
+
+// Verify all input font-sizes are at least 16px (eliminating iOS auto-zoom)
+const baseInputRuleMatch = stylesCss.match(/input,\s*select,\s*textarea,\s*\.input,\s*\.select,\s*\.stepper__input\s*\{[^}]*font-size:\s*16px;/);
+assert(baseInputRuleMatch, 'Base inputs and steppers must declare font-size: 16px');
+const mobileBlock = stylesCss.slice(stylesCss.indexOf('@media (max-width: 480px)'));
+assert(
+  mobileBlock.includes('input,\n    select,\n    textarea,\n    .input,\n    .select,\n    .stepper__input {\n        font-size: 16px;\n    }') ||
+  mobileBlock.includes('font-size: 16px;'),
+  'Mobile inputs and steppers must declare font-size: 16px on <= 480px'
+);
 
 console.log('✓ Fluid set rows and stepper widths verified successfully');
 
