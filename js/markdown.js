@@ -32,6 +32,11 @@ function exportWorkoutMarkdown(workout) {
         }
     }
 
+    const notes = (workout.notes || workout.note || '').trim();
+    if (notes) {
+        md += `## Notizen\n\n${notes}\n\n`;
+    }
+
     return md.trimEnd() + '\n';
 }
 
