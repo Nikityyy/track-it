@@ -216,7 +216,7 @@ function renderSetRow(set, index, disableRemove = false) {
         <div class="set-badge">${numStr}${sideStr ? `<div class="side">${sideStr}</div>` : ''}</div>
       </div>
       ${renderNumberStepper('reps', 'set-reps', set.reps || 0, 0, '', isSkipped, 'Wiederholungen')}
-      ${renderNumberStepper('rpe', 'set-rpe', set.rpe || 5, 1, 10, isSkipped, 'RPE')}
+      ${renderNumberStepper('rpe', 'set-rpe', set.rpe ?? '', 1, 10, isSkipped, 'RPE')}
       ${renderNumberStepper('break', 'set-break', set.breakSeconds || 0, 0, '', isSkipped, 'Pause in Sekunden', 15)}
       <div class="set-actions">
         ${renderRestTimerButton(isSkipped)}
@@ -268,7 +268,7 @@ function renderFinisherEntry(entry, index, type) {
   if (type === 'NORMAL') {
     const sets = entry.sets && entry.sets.length > 0
       ? entry.sets
-      : [{ setId: uuid(), label: 'Satz 1', reps: 0, rpe: 5, breakSeconds: 0, note: '', skipped: false }];
+      : [{ setId: uuid(), label: 'Satz 1', reps: 0, rpe: null, breakSeconds: 0, note: '', skipped: false }];
     return `
       <div class="card finisher-entry${isSkipped ? ' skipped' : ''}" data-entry-id="${escapeHtml(entry.id || uuid())}" data-index="${index}">
         ${renderFinisherEntryHeader(entry, isSkipped)}
@@ -438,7 +438,7 @@ function bindFormEvents(workout) {
       const row = removeSetBtn.closest('.set-row');
       const set = collectSetFromRow(row);
       const isDefault = (set.reps === 0 || set.reps === '0') &&
-        (set.rpe === 5 || set.rpe === '5') &&
+        (set.rpe == null || set.rpe === 5 || set.rpe === '5') &&
         (set.breakSeconds === 0 || set.breakSeconds === '0') &&
         !set.note;
 
@@ -600,7 +600,7 @@ function bindFinisherEvents() {
       const row = removeSetBtn.closest('.set-row');
       const set = collectSetFromRow(row);
       const isDefault = (set.reps === 0 || set.reps === '0') &&
-        (set.rpe === 5 || set.rpe === '5') &&
+        (set.rpe == null || set.rpe === 5 || set.rpe === '5') &&
         (set.breakSeconds === 0 || set.breakSeconds === '0') &&
         !set.note;
 
@@ -664,6 +664,7 @@ function handleStepperClick(btn) {
 
 function clampNumberInput(input) {
   if (!input.classList || !input.classList.contains('stepper__input')) return;
+  if (input.classList.contains('set-rpe') && input.value === '') return;
   let val = parseInt(input.value);
   if (isNaN(val)) val = 0;
   const min = input.min !== '' ? parseInt(input.min) : -Infinity;
@@ -737,12 +738,17 @@ function addSetToCard(card) {
   const setsContainer = getSetsContainer(card);
   const count = setsContainer.querySelectorAll('.set-row').length;
   const mode = card.querySelector('.mode-btn.btn-primary')?.dataset.mode || 'normal';
+  const rows = setsContainer.querySelectorAll('.set-row');
   if (mode === 'lr') {
     const pairNum = Math.floor(count / 2) + 1;
-    setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${pairNum} (links)`, reps: 0, rpe: 5, breakSeconds: 0, note: '', skipped: false }, count));
-    setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${pairNum} (rechts)`, reps: 0, rpe: 5, breakSeconds: 0, note: '', skipped: false }, count + 1));
+    const leftRpe = count >= 2 ? readRpeInput(rows[count - 2]) : null;
+    const rightRpe = count >= 1 ? readRpeInput(rows[count - 1]) : null;
+    setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${pairNum} (links)`, reps: 0, rpe: leftRpe, breakSeconds: 0, note: '', skipped: false }, count));
+    setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${pairNum} (rechts)`, reps: 0, rpe: rightRpe, breakSeconds: 0, note: '', skipped: false }, count + 1));
   } else {
-    setsContainer.insertAdjacentHTML('beforeend', renderSetRow(createEmptySet(count, 'normal'), count));
+    const newSet = createEmptySet(count, 'normal');
+    newSet.rpe = count >= 1 ? readRpeInput(rows[count - 1]) : null;
+    setsContainer.insertAdjacentHTML('beforeend', renderSetRow(newSet, count));
   }
   updateSetDeleteStates(card);
 }
@@ -777,7 +783,7 @@ function rebuildSetsForMode(card, newMode) {
   const setsContainer = getSetsContainer(card);
   const values = Array.from(setsContainer.querySelectorAll('.set-row')).map(row => ({
     reps: parseInt(row.querySelector('.set-reps')?.value) || 0,
-    rpe: parseInt(row.querySelector('.set-rpe')?.value) || 5,
+    rpe: readRpeInput(row),
     breakSeconds: parseInt(row.querySelector('.set-break')?.value) || 0,
     note: row.querySelector('.set-note')?.value || '',
     skipped: row.classList.contains('skipped')
@@ -792,7 +798,7 @@ function rebuildSetsForMode(card, newMode) {
   } else {
     const count = Math.ceil(values.length / 2);
     for (let i = 0; i < count; i++) {
-      const val = values[i * 2] || { reps: 0, rpe: 5, breakSeconds: 0, note: '', skipped: false };
+      const val = values[i * 2] || { reps: 0, rpe: null, breakSeconds: 0, note: '', skipped: false };
       setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${i + 1}`, ...val }, i));
     }
   }
@@ -856,11 +862,16 @@ function collectSetFromRow(row) {
     setId: row.dataset.setId || uuid(),
     label: row.querySelector('.set-label').dataset.rawLabel || row.querySelector('.set-label').textContent,
     reps: parseInt(row.querySelector('.set-reps')?.value) || 0,
-    rpe: parseInt(row.querySelector('.set-rpe')?.value) || 5,
+    rpe: readRpeInput(row),
     breakSeconds: parseInt(row.querySelector('.set-break')?.value) || 0,
     note: row.querySelector('.set-note')?.value || '',
     skipped: row.classList.contains('skipped')
   };
+}
+
+function readRpeInput(row) {
+  const value = parseInt(row?.querySelector('.set-rpe')?.value, 10);
+  return Number.isFinite(value) ? value : null;
 }
 
 function collectFinisherEntries() {

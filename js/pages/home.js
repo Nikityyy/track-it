@@ -20,7 +20,7 @@ async function renderHomePage() {
     if (w.exercises) {
       w.exercises.forEach(ex => {
         if (ex.sets) ex.sets.forEach(s => {
-          if (!s.skipped) { totalRpe += Number(s.rpe) || 0; totalSets++; }
+          if (!s.skipped && s.rpe != null) { totalRpe += Number(s.rpe) || 0; totalSets++; }
         });
       });
     }
@@ -79,7 +79,7 @@ async function renderHomePage() {
       let wRpe = 0, wSets = 0;
       if (w.exercises) w.exercises.forEach(ex => {
         if (ex.sets) ex.sets.forEach(s => {
-          if (!s.skipped) { wRpe += Number(s.rpe) || 0; wSets++; }
+          if (!s.skipped && s.rpe != null) { wRpe += Number(s.rpe) || 0; wSets++; }
         });
       });
       const wAvg = wSets > 0 ? (wRpe / wSets).toFixed(1).replace('.0', '') : null;

@@ -297,8 +297,8 @@ function restoreSetRowValues(row, set, index) {
   }
 
   const rpeInput = row.querySelector('.set-rpe');
-  if (rpeInput && parseInt(rpeInput.value, 10) !== (set.rpe ?? 5)) {
-    rpeInput.value = set.rpe ?? 5;
+  if (rpeInput && rpeInput.value !== String(set.rpe ?? '')) {
+    rpeInput.value = set.rpe ?? '';
   }
 
   const breakInput = row.querySelector('.set-break');

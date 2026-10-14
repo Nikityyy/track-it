@@ -432,7 +432,7 @@ function normalizeSet(set, index, mode) {
     setId: String(safeSet.setId || uuid()),
     label: String(safeSet.label || fallback.label),
     reps: normalizeNumber(safeSet.reps, 0, 0),
-    rpe: normalizeNumber(safeSet.rpe, 5, 1, 10),
+    rpe: safeSet.rpe === null ? null : normalizeNumber(safeSet.rpe, 5, 1, 10),
     breakSeconds: normalizeNumber(safeSet.breakSeconds, 0, 0),
     note: String(safeSet.note || ''),
     skipped: Boolean(safeSet.skipped)

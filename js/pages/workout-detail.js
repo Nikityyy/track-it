@@ -22,7 +22,7 @@ async function renderWorkoutDetailPage(params) {
     workout.exercises.forEach(ex => {
       if (ex.sets && ex.sets.length) {
         ex.sets.forEach(s => {
-          if (s.skipped) return;
+          if (s.skipped || s.rpe == null) return;
           totalRpe += Number(s.rpe) || 0;
           totalSets++;
         });
@@ -35,7 +35,7 @@ async function renderWorkoutDetailPage(params) {
       if (entry.skipped) return;
       if (workout.finisher.type === 'NORMAL' && entry.sets) {
         entry.sets.forEach(s => {
-          if (s.skipped) return;
+          if (s.skipped || s.rpe == null) return;
           totalRpe += Number(s.rpe) || 0;
           totalSets++;
         });
@@ -69,7 +69,7 @@ async function renderWorkoutDetailPage(params) {
             ${s.skipped
       ? `<span class="detail-set-reps skipped-text">Übersprungen</span>`
       : `<span class="detail-set-reps">${s.reps} Wdh</span>
-                 <span class="detail-set-rpe">RPE ${s.rpe}</span>
+                 <span class="detail-set-rpe">RPE ${s.rpe ?? '–'}</span>
                  ${s.breakSeconds ? `<span class="detail-set-break">Pause ${formatDuration(s.breakSeconds)}</span>` : ''}
                  ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}`
     }
@@ -105,7 +105,7 @@ async function renderWorkoutDetailPage(params) {
                     ${s.skipped
         ? `<span class="detail-set-reps skipped-text">Übersprungen</span>`
         : `<span class="detail-set-reps">${s.reps} Wdh</span>
-                         <span class="detail-set-rpe">RPE ${s.rpe}</span>
+                         <span class="detail-set-rpe">RPE ${s.rpe ?? '–'}</span>
                          ${s.breakSeconds ? `<span class="detail-set-break">Pause ${formatDuration(s.breakSeconds)}</span>` : ''}
                          ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}`
       }
@@ -150,6 +150,9 @@ async function renderWorkoutDetailPage(params) {
         </button>
         <button class="btn btn-ghost" id="btn-copy-md">
           ${icon('copy', 16)} Kopieren (Markdown)
+        </button>
+        <button class="btn btn-ghost" id="btn-copy-compact">
+          ${icon('copy', 16)} Kompakt kopieren
         </button>
         <button class="btn btn-ghost btn-danger-ghost" id="btn-delete-workout">
           ${icon('trash', 16)} Löschen
@@ -196,6 +199,11 @@ async function renderWorkoutDetailPage(params) {
     copyMarkdownToClipboard(workout);
   });
 
+  document.getElementById('btn-copy-compact').addEventListener('click', () => {
+    if (window.haptic) window.haptic.trigger('success');
+    copyCompactToClipboard(workout);
+  });
+
   document.getElementById('btn-delete-workout').addEventListener('click', () => {
     if (window.haptic) window.haptic.trigger('error');
     showModal({
@@ -223,7 +231,7 @@ async function shareWorkoutGraphic(workout) {
       workout.exercises.forEach(ex => {
         if (ex.sets) {
           ex.sets.forEach(s => {
-            if (!s.skipped) {
+            if (!s.skipped && s.rpe != null) {
               totalRpe += Number(s.rpe) || 0;
               totalSets++;
             }
@@ -237,7 +245,7 @@ async function shareWorkoutGraphic(workout) {
         if (entry.skipped) return;
         if (workout.finisher.type === 'NORMAL' && entry.sets) {
           entry.sets.forEach(s => {
-            if (!s.skipped) {
+            if (!s.skipped && s.rpe != null) {
               totalRpe += Number(s.rpe) || 0;
               totalSets++;
             }
@@ -528,7 +536,7 @@ async function shareWorkoutGraphic(workout) {
 
           ctx.fillStyle = '#d4d4d8';
           ctx.font = '500 12px Inter, system-ui, -apple-system, sans-serif';
-          ctx.fillText(`RPE ${s.rpe}`, colX.rpe, setY + 8);
+          ctx.fillText(`RPE ${s.rpe ?? '–'}`, colX.rpe, setY + 8);
 
           ctx.fillStyle = '#a1a1aa';
           ctx.font = '400 12px Inter, system-ui, -apple-system, sans-serif';
@@ -617,7 +625,7 @@ async function shareWorkoutGraphic(workout) {
               ctx.fillStyle = '#d4d4d8';
               ctx.font = '500 12px Inter, system-ui, -apple-system, sans-serif';
               ctx.fillText(`${s.reps} Wdh`, colX.wdh, setY + 8);
-              ctx.fillText(`RPE ${s.rpe}`, colX.rpe, setY + 8);
+              ctx.fillText(`RPE ${s.rpe ?? '–'}`, colX.rpe, setY + 8);
               ctx.fillStyle = '#a1a1aa';
               ctx.font = '400 12px Inter, system-ui, -apple-system, sans-serif';
               ctx.fillText(s.breakSeconds ? `${s.breakSeconds}s` : '–', colX.pause, setY + 8);

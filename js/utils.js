@@ -119,7 +119,7 @@ function createEmptySet(index, mode, pairIndex) {
             setId: uuid(),
             label: `Satz ${sn} (${side})`,
             reps: 0,
-            rpe: 5,
+            rpe: null,
             breakSeconds: 0,
             note: ''
         };
@@ -128,7 +128,7 @@ function createEmptySet(index, mode, pairIndex) {
         setId: uuid(),
         label: `Satz ${index + 1}`,
         reps: 0,
-        rpe: 5,
+        rpe: null,
         breakSeconds: 0,
         note: ''
     };

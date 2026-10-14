@@ -359,7 +359,7 @@ function compileWorkoutsToCsv(workouts) {
               escapeCsvCell(exName),
               escapeCsvCell(s.label || ''),
               escapeCsvCell(s.skipped ? 'Übersprungen' : (s.reps ?? 0)),
-              escapeCsvCell(s.skipped ? '' : (s.rpe ?? 5)),
+              escapeCsvCell(s.skipped ? '' : (s.rpe ?? '–')),
               escapeCsvCell(s.skipped ? '' : (s.breakSeconds ?? 0)),
               escapeCsvCell(s.note || '')
             ]);
@@ -388,7 +388,7 @@ function compileWorkoutsToCsv(workouts) {
               escapeCsvCell(finName),
               escapeCsvCell(s.label || ''),
               escapeCsvCell(s.skipped ? 'Übersprungen' : (s.reps ?? 0)),
-              escapeCsvCell(s.skipped ? '' : (s.rpe ?? 5)),
+              escapeCsvCell(s.skipped ? '' : (s.rpe ?? '–')),
               escapeCsvCell(s.skipped ? '' : (s.breakSeconds ?? 0)),
               escapeCsvCell(s.note || '')
             ]);
