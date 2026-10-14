@@ -10,12 +10,14 @@ const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
 console.log('Testing WP2: Design Tokens, CSS Styles & Mobile Ergonomics...');
 
 // 1. Design Tokens
-assert(designTokensCss.includes('--color-accent: #6366f1;'), 'Missing --color-accent token');
-assert(designTokensCss.includes('--color-accent-hover: #4f46e5;'), 'Missing --color-accent-hover token');
-assert(designTokensCss.includes('--color-success: #10b981;'), 'Missing --color-success token');
-assert(designTokensCss.includes('--color-warning: #f59e0b;'), 'Missing --color-warning token');
-assert(designTokensCss.includes('--color-danger: #ef4444;'), 'Missing --color-danger token');
-assert(designTokensCss.includes('--color-info: #3b82f6;'), 'Missing --color-info token');
+assert(designTokensCss.includes('--color-accent: #ff6b1f;'), 'Missing --color-accent token');
+assert(designTokensCss.includes('--color-accent-hover: #ff8540;'), 'Missing --color-accent-hover token');
+assert(designTokensCss.includes('--on-accent: #1a0b02;'), 'Missing --on-accent token');
+assert(designTokensCss.includes('--color-success: #5cc48a;'), 'Missing --color-success token');
+assert(designTokensCss.includes('--color-warning: #e8a23a;'), 'Missing --color-warning token');
+assert(designTokensCss.includes('--color-danger: #ff6a5c;'), 'Missing --color-danger token');
+assert(designTokensCss.includes('--color-info: #7ea6f0;'), 'Missing --color-info token');
+assert(designTokensCss.includes("font-family: 'Archivo';"), 'Missing self-hosted Archivo @font-face');
 
 assert(designTokensCss.includes('--space-2xs: 2px;'), 'Missing --space-2xs');
 assert(designTokensCss.includes('--space-xs: 4px;'), 'Missing --space-xs');
@@ -26,22 +28,22 @@ assert(designTokensCss.includes('--space-xl: 24px;'), 'Missing --space-xl');
 assert(designTokensCss.includes('--space-2xl: 32px;'), 'Missing --space-2xl');
 
 assert(designTokensCss.includes('[data-theme="light"]'), 'Missing [data-theme="light"] override block');
-assert(designTokensCss.includes('--bg: #f8fafc;'), 'Missing light mode --bg');
+assert(designTokensCss.includes('--bg: #f0efeb;'), 'Missing light mode --bg');
 assert(designTokensCss.includes('--surface: #ffffff;'), 'Missing light mode --surface');
-assert(designTokensCss.includes('--surface-2: #f1f5f9;'), 'Missing light mode --surface-2');
-assert(designTokensCss.includes('--surface-hover: #e2e8f0;'), 'Missing light mode --surface-hover');
-assert(designTokensCss.includes('--text-primary: #0f172a;'), 'Missing light mode --text-primary');
-assert(designTokensCss.includes('--text-muted: #64748b;'), 'Missing light mode --text-muted');
-assert(designTokensCss.includes('--muted-border: #e2e8f0;'), 'Missing light mode --muted-border');
-assert(designTokensCss.includes('--muted-border-hover: #cbd5e1;'), 'Missing light mode --muted-border-hover');
-assert(designTokensCss.includes('--shadow: rgba(0, 0, 0, 0.08);'), 'Missing light mode --shadow');
+assert(designTokensCss.includes('--surface-2: #e4e2dc;'), 'Missing light mode --surface-2');
+assert(designTokensCss.includes('--surface-hover: #d8d6cf;'), 'Missing light mode --surface-hover');
+assert(designTokensCss.includes('--text-primary: #16140f;'), 'Missing light mode --text-primary');
+assert(designTokensCss.includes('--text-muted: #5c584f;'), 'Missing light mode --text-muted');
+assert(designTokensCss.includes('--muted-border: #d6d3cb;'), 'Missing light mode --muted-border');
+assert(designTokensCss.includes('--muted-border-hover: #bdb9ae;'), 'Missing light mode --muted-border-hover');
+assert(designTokensCss.includes('--shadow: rgba(22, 20, 15, 0.08);'), 'Missing light mode --shadow');
 
 assert(designTokensCss.includes('[data-theme="oled"]'), 'Missing [data-theme="oled"] override block');
-assert(designTokensCss.includes('--surface: #050505;'), 'Missing oled mode --surface');
-assert(designTokensCss.includes('--surface-2: #111111;'), 'Missing oled mode --surface-2');
-assert(designTokensCss.includes('--surface-hover: #1c1c1c;'), 'Missing oled mode --surface-hover');
-assert(designTokensCss.includes('--text-primary: #f5f5f5;'), 'Missing oled mode --text-primary');
-assert(designTokensCss.includes('--muted-border: #1a1a1a;'), 'Missing oled mode --muted-border');
+assert(designTokensCss.includes('--surface: #0b0a09;'), 'Missing oled mode --surface');
+assert(designTokensCss.includes('--surface-2: #171614;'), 'Missing oled mode --surface-2');
+assert(designTokensCss.includes('--surface-hover: #22201d;'), 'Missing oled mode --surface-hover');
+assert(designTokensCss.includes('--text-primary: #f5f2eb;'), 'Missing oled mode --text-primary');
+assert(designTokensCss.includes('--muted-border: #1f1d1a;'), 'Missing oled mode --muted-border');
 
 console.log('✓ Design tokens verified successfully');
 

@@ -13,14 +13,16 @@ assert.ok(!indexHtml.includes('https://cdn.jsdelivr.net'), 'No CDN scripts in in
 assert.ok(!indexHtml.includes('https://esm.sh'), 'No esm.sh scripts in index.html');
 assert.ok(indexHtml.includes('viewport-fit=cover'), 'Viewport meta should contain viewport-fit=cover');
 assert.ok(!indexHtml.includes('user-scalable=no'), 'Viewport meta should not contain user-scalable=no');
-assert.ok(indexHtml.includes('wght@300;400;500;600;700'), 'Google Fonts should include wght@500');
+assert.ok(indexHtml.includes('./fonts/archivo-latin.woff2'), 'Archivo should be preloaded from the local fonts folder');
+assert.ok(!indexHtml.includes('fonts.googleapis.com'), 'Fonts must be self-hosted so the app works offline');
 
 const descMatches = indexHtml.match(/<meta name="description"/g);
 assert.equal(descMatches ? descMatches.length : 0, 1, 'There should be exactly one description meta tag');
 
 // 2. Test service-worker.js requirements
 const swContent = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.ok(swContent.includes("CACHE_NAME = 'trackit-cache-v8'"), 'Cache name should be trackit-cache-v8');
+assert.ok(swContent.includes("CACHE_NAME = 'trackit-cache-v9'"), 'Cache name should be trackit-cache-v9');
+assert.ok(swContent.includes("'./fonts/archivo-latin.woff2'") && swContent.includes("'./fonts/archivo-latin-ext.woff2'"), 'PRECACHE_URLS should contain the self-hosted fonts');
 assert.ok(swContent.includes("'./vendor/lucide.min.js'"), 'PRECACHE_URLS should contain vendor/lucide.min.js');
 assert.ok(swContent.includes("'./vendor/web-haptics.js'"), 'PRECACHE_URLS should contain vendor/web-haptics.js');
 assert.ok(swContent.includes('cachedResponse'), 'Should implement Stale-While-Revalidate returning cachedResponse if found');

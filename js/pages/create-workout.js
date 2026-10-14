@@ -153,10 +153,10 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
         </div>
 
         <div class="form-actions form-actions-sticky">
-          <button type="button" class="btn btn-ghost" id="btn-undo" disabled>${icon('undo', 16)} Undo</button>
-          <button type="button" class="btn btn-ghost" id="btn-redo" disabled>${icon('redo', 16)} Redo</button>
+          <button type="button" class="btn btn-ghost btn-round" id="btn-undo" aria-label="Rückgängig" title="Rückgängig" disabled>${icon('undo', 18)}</button>
+          <button type="button" class="btn btn-ghost btn-round" id="btn-redo" aria-label="Wiederholen" title="Wiederholen" disabled>${icon('redo', 18)}</button>
           <button type="button" class="btn btn-ghost" id="btn-cancel">Abbrechen</button>
-          <button type="button" class="btn btn-primary" id="btn-save-workout">${icon('save', 16)} ${isEdit ? 'Speichern' : 'Workout speichern'}</button>
+          <button type="button" class="btn btn-primary" id="btn-save-workout">Speichern</button>
         </div>
       </form>
     </div>
@@ -233,8 +233,8 @@ function renderNumberStepper(target, inputClass, value, min, max, disabled, labe
   const maxAttr = max === '' ? '' : ` max="${max}"`;
   return `
     <div class="stepper stepper-sm stepper-minimal stepper-${target}">
-      <button type="button" class="stepper__btn stepper-dec" data-target="${target}" data-step="${step}" aria-label="Weniger"${disabled ? ' disabled' : ''}>-</button>
-      <input type="number" class="stepper__input ${inputClass}" value="${value}" min="${min}"${maxAttr} step="${step}" aria-label="${label}"${disabled ? ' disabled' : ''}>
+      <button type="button" class="stepper__btn stepper-dec" data-target="${target}" data-step="${step}" aria-label="Weniger"${disabled ? ' disabled' : ''}>−</button>
+      <input type="number" class="stepper__input ${inputClass}" value="${value}" placeholder="–" min="${min}"${maxAttr} step="${step}" aria-label="${label}"${disabled ? ' disabled' : ''}>
       <button type="button" class="stepper__btn stepper-inc" data-target="${target}" data-step="${step}" aria-label="Mehr"${disabled ? ' disabled' : ''}>+</button>
     </div>
   `;

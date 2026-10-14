@@ -69,8 +69,8 @@ async function renderWorkoutDetailPage(params) {
             ${s.skipped
       ? `<span class="detail-set-reps skipped-text">Übersprungen</span>`
       : `<span class="detail-set-reps">${s.reps} Wdh</span>
-                 <span class="detail-set-rpe">RPE ${s.rpe ?? '–'}</span>
-                 ${s.breakSeconds ? `<span class="detail-set-break">Pause ${formatDuration(s.breakSeconds)}</span>` : ''}
+                 <span class="detail-set-rpe">${s.rpe ?? '–'}</span>
+                 ${s.breakSeconds ? `<span class="detail-set-break">${formatDuration(s.breakSeconds)}</span>` : ''}
                  ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}`
     }
           </div>
@@ -105,8 +105,8 @@ async function renderWorkoutDetailPage(params) {
                     ${s.skipped
         ? `<span class="detail-set-reps skipped-text">Übersprungen</span>`
         : `<span class="detail-set-reps">${s.reps} Wdh</span>
-                         <span class="detail-set-rpe">RPE ${s.rpe ?? '–'}</span>
-                         ${s.breakSeconds ? `<span class="detail-set-break">Pause ${formatDuration(s.breakSeconds)}</span>` : ''}
+                         <span class="detail-set-rpe">${s.rpe ?? '–'}</span>
+                         ${s.breakSeconds ? `<span class="detail-set-break">${formatDuration(s.breakSeconds)}</span>` : ''}
                          ${s.note ? `<span class="detail-set-note">${escapeHtml(s.note)}</span>` : ''}`
       }
                   </div>
@@ -114,7 +114,7 @@ async function renderWorkoutDetailPage(params) {
               </div>
             ` : `
               <div class="detail-sets">
-                <div class="detail-set-row">
+                <div class="detail-set-row detail-result-row">
                   <span class="detail-set-label">Ergebnis</span>
                   <span class="detail-set-reps">${escapeHtml(entry.result || '–')}</span>
                   <span class="detail-set-rpe">RPE ${entry.rpe}</span>
@@ -314,7 +314,7 @@ async function shareWorkoutGraphic(workout) {
     }
 
     function drawBadge(ctx, text, x, y, bgColor, borderColor, textColor, fontSize = 11) {
-      ctx.font = `600 ${fontSize}px Inter, system-ui, -apple-system, sans-serif`;
+      ctx.font = `600 ${fontSize}px Archivo, system-ui, -apple-system, sans-serif`;
       const textWidth = ctx.measureText(text).width;
       const badgeH = fontSize + 8;
       const badgeW = textWidth + 14;
@@ -339,7 +339,7 @@ async function shareWorkoutGraphic(workout) {
 
     let noteLines = [];
     if (workout.notes && workout.notes.trim()) {
-      mCtx.font = '400 13px Inter, system-ui, -apple-system, sans-serif';
+      mCtx.font = '400 13px Archivo, system-ui, -apple-system, sans-serif';
       noteLines = wrapText(mCtx, workout.notes.trim(), contentWidth - 32);
       estHeight += 14 + 16 + 8 + noteLines.length * 20 + 14 + 14;
     }
@@ -390,11 +390,11 @@ async function shareWorkoutGraphic(workout) {
     });
 
     // Canvas background
-    ctx.fillStyle = '#09090b';
+    ctx.fillStyle = '#0f0e0c';
     ctx.fillRect(0, 0, baseWidth, totalHeight);
 
     // Subtle inner border
-    drawRoundedRect(ctx, 8, 8, baseWidth - 16, totalHeight - 16, 16, null, '#1f1f23');
+    drawRoundedRect(ctx, 8, 8, baseWidth - 16, totalHeight - 16, 16, null, '#2a2824');
 
     let y = padding;
 
@@ -406,10 +406,10 @@ async function shareWorkoutGraphic(workout) {
     if (logoImg.complete && logoImg.naturalWidth > 0) {
       ctx.drawImage(logoImg, padding, y, 24, 24);
     } else {
-      ctx.fillStyle = '#6366f1';
+      ctx.fillStyle = '#ff6b1f';
       ctx.fillRect(padding, y, 24, 24);
       ctx.fillStyle = '#ffffff';
-      ctx.font = '700 12px Inter, system-ui, sans-serif';
+      ctx.font = '700 12px Archivo, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('T', padding + 12, y + 12);
@@ -417,7 +417,7 @@ async function shareWorkoutGraphic(workout) {
     ctx.restore();
 
     ctx.fillStyle = '#ededed';
-    ctx.font = '700 14px Inter, system-ui, -apple-system, sans-serif';
+    ctx.font = '700 14px Archivo, system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText('Track It!', padding + 32, y + 12);
@@ -425,7 +425,7 @@ async function shareWorkoutGraphic(workout) {
 
     // Workout Name
     ctx.fillStyle = '#ffffff';
-    ctx.font = '700 22px Inter, system-ui, -apple-system, sans-serif';
+    ctx.font = '700 22px Archivo, system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     const workoutName = truncateText(ctx, workout.name || 'Workout', contentWidth);
@@ -433,7 +433,7 @@ async function shareWorkoutGraphic(workout) {
     y += 28;
 
     // Meta row: Date/time + Type badge + Ø RPE badge
-    ctx.font = '400 13px Inter, system-ui, -apple-system, sans-serif';
+    ctx.font = '400 13px Archivo, system-ui, -apple-system, sans-serif';
     ctx.fillStyle = '#a1a1aa';
     ctx.textBaseline = 'middle';
     const dateStr = formatDateTimeDE(workout.date);
@@ -446,7 +446,7 @@ async function shareWorkoutGraphic(workout) {
     }
 
     if (totalSets > 0) {
-      const rpeBadgeW = drawBadge(ctx, `Ø RPE ${avgRpe}`, metaX, y, 'rgba(99, 102, 241, 0.12)', 'rgba(99, 102, 241, 0.3)', '#818cf8', 11);
+      const rpeBadgeW = drawBadge(ctx, `Ø RPE ${avgRpe}`, metaX, y, 'rgba(255, 107, 31, 0.12)', 'rgba(255, 107, 31, 0.3)', '#ff8540', 11);
       metaX += rpeBadgeW + 8;
     }
 
@@ -455,16 +455,16 @@ async function shareWorkoutGraphic(workout) {
     // Notes Card
     if (workout.notes && workout.notes.trim() && noteLines.length > 0) {
       const noteCardH = 14 + 14 + 6 + noteLines.length * 20 + 12;
-      drawRoundedRect(ctx, padding, y, contentWidth, noteCardH, 10, '#111114', '#1f1f23');
+      drawRoundedRect(ctx, padding, y, contentWidth, noteCardH, 10, '#171613', '#2a2824');
 
       ctx.fillStyle = '#a1a1aa';
-      ctx.font = '600 10px Inter, system-ui, -apple-system, sans-serif';
+      ctx.font = '600 10px Archivo, system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText('NOTIZEN', padding + 16, y + 14);
 
       ctx.fillStyle = '#e4e4e7';
-      ctx.font = '400 13px Inter, system-ui, -apple-system, sans-serif';
+      ctx.font = '400 13px Archivo, system-ui, -apple-system, sans-serif';
       let ny = y + 32;
       noteLines.forEach(line => {
         ctx.fillText(line, padding + 16, ny);
@@ -478,10 +478,10 @@ async function shareWorkoutGraphic(workout) {
     exercises.forEach(ex => {
       const sets = ex.sets || [];
       const exCardH = 14 + 20 + 10 + 20 + Math.max(1, sets.length) * 26 + 14;
-      drawRoundedRect(ctx, padding, y, contentWidth, exCardH, 10, '#111114', '#1f1f23');
+      drawRoundedRect(ctx, padding, y, contentWidth, exCardH, 10, '#171613', '#2a2824');
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = '600 15px Inter, system-ui, -apple-system, sans-serif';
+      ctx.font = '600 15px Archivo, system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       const modeText = ex.mode === 'lr' ? 'Links/Rechts' : 'Normal';
@@ -501,7 +501,7 @@ async function shareWorkoutGraphic(workout) {
       };
 
       ctx.fillStyle = '#71717a';
-      ctx.font = '600 10px Inter, system-ui, -apple-system, sans-serif';
+      ctx.font = '600 10px Archivo, system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText('SATZ', colX.satz, tableY + 8);
@@ -522,29 +522,29 @@ async function shareWorkoutGraphic(workout) {
         ctx.textBaseline = 'middle';
 
         ctx.fillStyle = '#f4f4f5';
-        ctx.font = '600 12px Inter, system-ui, -apple-system, sans-serif';
+        ctx.font = '600 12px Archivo, system-ui, -apple-system, sans-serif';
         ctx.fillText(s.label || String(sIdx + 1), colX.satz, setY + 8);
 
         if (s.skipped) {
           ctx.fillStyle = '#71717a';
-          ctx.font = 'italic 12px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = 'italic 12px Archivo, system-ui, -apple-system, sans-serif';
           ctx.fillText('Übersprungen', colX.wdh, setY + 8);
         } else {
           ctx.fillStyle = '#d4d4d8';
-          ctx.font = '500 12px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = '500 12px Archivo, system-ui, -apple-system, sans-serif';
           ctx.fillText(`${s.reps} Wdh`, colX.wdh, setY + 8);
 
           ctx.fillStyle = '#d4d4d8';
-          ctx.font = '500 12px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = '500 12px Archivo, system-ui, -apple-system, sans-serif';
           ctx.fillText(`RPE ${s.rpe ?? '–'}`, colX.rpe, setY + 8);
 
           ctx.fillStyle = '#a1a1aa';
-          ctx.font = '400 12px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = '400 12px Archivo, system-ui, -apple-system, sans-serif';
           const pauseStr = s.breakSeconds ? `${s.breakSeconds}s` : '–';
           ctx.fillText(pauseStr, colX.pause, setY + 8);
 
           ctx.fillStyle = '#71717a';
-          ctx.font = '400 11px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = '400 11px Archivo, system-ui, -apple-system, sans-serif';
           const maxNoteW = contentWidth - (colX.notiz - padding) - 16;
           const noteStr = s.note ? truncateText(ctx, s.note, maxNoteW) : '–';
           ctx.fillText(noteStr, colX.notiz, setY + 8);
@@ -570,7 +570,7 @@ async function shareWorkoutGraphic(workout) {
       const finTitle = fin.name || `Finisher (${fin.type})`;
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = '700 15px Inter, system-ui, -apple-system, sans-serif';
+      ctx.font = '700 15px Archivo, system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(finTitle, padding, y);
@@ -579,10 +579,10 @@ async function shareWorkoutGraphic(workout) {
       (fin.entries || []).forEach(entry => {
         if (fin.type === 'NORMAL' && entry.sets && entry.sets.length > 0) {
           const entryH = 14 + 20 + 10 + 20 + entry.sets.length * 26 + 14;
-          drawRoundedRect(ctx, padding, y, contentWidth, entryH, 10, '#111114', '#1f1f23');
+          drawRoundedRect(ctx, padding, y, contentWidth, entryH, 10, '#171613', '#2a2824');
 
           ctx.fillStyle = '#ffffff';
-          ctx.font = '600 14px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = '600 14px Archivo, system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
           ctx.fillText(truncateText(ctx, entry.name || 'Unbenannt', contentWidth - 40), padding + 16, y + 20);
@@ -597,7 +597,7 @@ async function shareWorkoutGraphic(workout) {
           };
 
           ctx.fillStyle = '#71717a';
-          ctx.font = '600 10px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = '600 10px Archivo, system-ui, -apple-system, sans-serif';
           ctx.fillText('SATZ', colX.satz, tableY + 8);
           ctx.fillText('WDH', colX.wdh, tableY + 8);
           ctx.fillText('RPE', colX.rpe, tableY + 8);
@@ -614,23 +614,23 @@ async function shareWorkoutGraphic(workout) {
           entry.sets.forEach((s, sIdx) => {
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#f4f4f5';
-            ctx.font = '600 12px Inter, system-ui, -apple-system, sans-serif';
+            ctx.font = '600 12px Archivo, system-ui, -apple-system, sans-serif';
             ctx.fillText(s.label || String(sIdx + 1), colX.satz, setY + 8);
 
             if (s.skipped) {
               ctx.fillStyle = '#71717a';
-              ctx.font = 'italic 12px Inter, system-ui, -apple-system, sans-serif';
+              ctx.font = 'italic 12px Archivo, system-ui, -apple-system, sans-serif';
               ctx.fillText('Übersprungen', colX.wdh, setY + 8);
             } else {
               ctx.fillStyle = '#d4d4d8';
-              ctx.font = '500 12px Inter, system-ui, -apple-system, sans-serif';
+              ctx.font = '500 12px Archivo, system-ui, -apple-system, sans-serif';
               ctx.fillText(`${s.reps} Wdh`, colX.wdh, setY + 8);
               ctx.fillText(`RPE ${s.rpe ?? '–'}`, colX.rpe, setY + 8);
               ctx.fillStyle = '#a1a1aa';
-              ctx.font = '400 12px Inter, system-ui, -apple-system, sans-serif';
+              ctx.font = '400 12px Archivo, system-ui, -apple-system, sans-serif';
               ctx.fillText(s.breakSeconds ? `${s.breakSeconds}s` : '–', colX.pause, setY + 8);
               ctx.fillStyle = '#71717a';
-              ctx.font = '400 11px Inter, system-ui, -apple-system, sans-serif';
+              ctx.font = '400 11px Archivo, system-ui, -apple-system, sans-serif';
               ctx.fillText(s.note ? truncateText(ctx, s.note, 190) : '–', colX.notiz, setY + 8);
             }
 
@@ -640,20 +640,20 @@ async function shareWorkoutGraphic(workout) {
           y += entryH + 12;
         } else {
           const entryH = 14 + 20 + 24 + (entry.note ? 22 : 0) + 14;
-          drawRoundedRect(ctx, padding, y, contentWidth, entryH, 10, '#111114', '#1f1f23');
+          drawRoundedRect(ctx, padding, y, contentWidth, entryH, 10, '#171613', '#2a2824');
 
           ctx.fillStyle = '#ffffff';
-          ctx.font = '600 14px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = '600 14px Archivo, system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
           ctx.fillText(truncateText(ctx, entry.name || 'Unbenannt', contentWidth - 40), padding + 16, y + 20);
 
-          ctx.font = '500 12px Inter, system-ui, -apple-system, sans-serif';
+          ctx.font = '500 12px Archivo, system-ui, -apple-system, sans-serif';
           ctx.fillStyle = '#d4d4d8';
           ctx.fillText(`Ergebnis: ${entry.result || '–'}   ·   RPE: ${entry.rpe || '–'}`, padding + 16, y + 44);
 
           if (entry.note) {
-            ctx.font = '400 11px Inter, system-ui, -apple-system, sans-serif';
+            ctx.font = '400 11px Archivo, system-ui, -apple-system, sans-serif';
             ctx.fillStyle = '#71717a';
             ctx.fillText(`Notiz: ${entry.note}`, padding + 16, y + 66);
           }
@@ -666,7 +666,7 @@ async function shareWorkoutGraphic(workout) {
 
     // Footer branding
     ctx.fillStyle = '#52525b';
-    ctx.font = '500 11px Inter, system-ui, -apple-system, sans-serif';
+    ctx.font = '500 11px Archivo, system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText('Track It! · Offline & Privat', baseWidth / 2, totalHeight - padding + 10);

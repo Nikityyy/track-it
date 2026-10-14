@@ -1,29 +1,60 @@
+/* Track It! — "Anzeigetafel" (scoreboard of an indoor track)
+ * Warm black ground, chalk-white ink, one signal orange that means
+ * "läuft / jetzt": the primary action and a running rest timer.
+ * Archivo (OFL), self-hosted: condensed heavy for scores, normal width for text. */
+
+@font-face {
+    font-family: 'Archivo';
+    font-style: normal;
+    font-weight: 100 900;
+    font-stretch: 62% 125%;
+    font-display: swap;
+    src: url('./fonts/archivo-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: 'Archivo';
+    font-style: normal;
+    font-weight: 100 900;
+    font-stretch: 62% 125%;
+    font-display: swap;
+    src: url('./fonts/archivo-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root,
 [data-theme="dark"] {
-    --bg: #000000;
-    --surface: #0a0a0a;
-    --surface-2: #222222;
-    --surface-hover: #2e2e2e;
-    --text-primary: #ededed;
-    --text-muted: #888888;
-    --accent: #ededed;
+    --font: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --condensed: 62%;
+
+    --bg: #0f0e0c;
+    --surface: #171613;
+    --surface-2: #22201c;
+    --surface-hover: #2c2a25;
+    --text-primary: #f3f0e9;
+    --text-muted: #a39d90;
+    --accent: #f3f0e9;
     --accent-hover: #ffffff;
-    --muted-border: #1f1f1f;
-    --muted-border-hover: #333333;
-    --danger: #ff4444;
-    --focus: rgba(255, 255, 255, 0.08);
-    --shadow: rgba(0, 0, 0, 0.8);
-    --radius-sm: 6px;
-    --radius-md: 8px;
+    --muted-border: #2a2824;
+    --muted-border-hover: #3d3a34;
+    --danger: #ff6a5c;
+    --focus: rgba(243, 240, 233, 0.1);
+    --shadow: rgba(0, 0, 0, 0.6);
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 22px;
     --space-1: 8px;
 
     /* Semantic colors */
-    --color-accent: #6366f1;
-    --color-accent-hover: #4f46e5;
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-    --color-danger: #ef4444;
-    --color-info: #3b82f6;
+    --color-accent: #ff6b1f;
+    --color-accent-hover: #ff8540;
+    --on-accent: #1a0b02;
+    --color-accent-text: #ff7f3d;
+    --color-success: #5cc48a;
+    --color-warning: #e8a23a;
+    --color-danger: #ff6a5c;
+    --color-info: #7ea6f0;
 
     /* Spacing scale */
     --space-2xs: 2px;
@@ -36,70 +67,75 @@
 
     /* Browser native & UI controls */
     color-scheme: dark;
-    --header-bg: rgba(0, 0, 0, 0.88);
-    --scrollbar-thumb: rgba(255, 255, 255, 0.12);
-    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+    --header-bg: rgba(15, 14, 12, 0.82);
+    --scrollbar-thumb: rgba(243, 240, 233, 0.12);
+    --scrollbar-thumb-hover: rgba(243, 240, 233, 0.22);
 
-    /* GitHub Heatmap activity levels (theme accent-based) */
-    --github-l0: #161b22;
-    --github-l1: rgba(99, 102, 241, 0.28);
-    --github-l2: rgba(99, 102, 241, 0.55);
-    --github-l3: #6366f1;
-    --github-l4: #818cf8;
+    /* Activity heatmap: one hue, intensity = workouts per day */
+    --github-l0: #1d1b18;
+    --github-l1: rgba(255, 107, 31, 0.32);
+    --github-l2: rgba(255, 107, 31, 0.58);
+    --github-l3: #ff6b1f;
+    --github-l4: #ffa36b;
 }
 
 [data-theme="light"] {
-    --bg: #f8fafc;
+    --bg: #f0efeb;
     --surface: #ffffff;
-    --surface-2: #f1f5f9;
-    --surface-hover: #e2e8f0;
-    --text-primary: #0f172a;
-    --text-muted: #64748b;
-    --accent: #0f172a;
-    --accent-hover: #1e293b;
-    --muted-border: #e2e8f0;
-    --muted-border-hover: #cbd5e1;
-    --shadow: rgba(0, 0, 0, 0.08);
-    --focus: rgba(99, 102, 241, 0.15);
+    --surface-2: #e4e2dc;
+    --surface-hover: #d8d6cf;
+    --text-primary: #16140f;
+    --text-muted: #5c584f;
+    --accent: #16140f;
+    --accent-hover: #000000;
+    --muted-border: #d6d3cb;
+    --muted-border-hover: #bdb9ae;
+    --danger: #c62f22;
+    --shadow: rgba(22, 20, 15, 0.08);
+    --focus: rgba(22, 20, 15, 0.1);
+
+    --color-accent: #f2600f;
+    --color-accent-hover: #d9520a;
+    --on-accent: #1a0b02;
+    --color-accent-text: #b8470a;
+    --color-danger: #c62f22;
 
     /* Browser native & UI controls */
     color-scheme: light;
-    --header-bg: rgba(255, 255, 255, 0.88);
-    --scrollbar-thumb: rgba(0, 0, 0, 0.15);
-    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+    --header-bg: rgba(240, 239, 235, 0.86);
+    --scrollbar-thumb: rgba(22, 20, 15, 0.15);
+    --scrollbar-thumb-hover: rgba(22, 20, 15, 0.28);
 
-    /* GitHub Heatmap activity levels (theme accent-based) */
-    --github-l0: #ebedf0;
-    --github-l1: #c7d2fe;
-    --github-l2: #818cf8;
-    --github-l3: #6366f1;
-    --github-l4: #4338ca;
+    --github-l0: #e2e0d9;
+    --github-l1: rgba(242, 96, 15, 0.3);
+    --github-l2: rgba(242, 96, 15, 0.55);
+    --github-l3: #f2600f;
+    --github-l4: #b8470a;
 }
 
 [data-theme="oled"] {
     --bg: #000000;
-    --surface: #050505;
-    --surface-2: #111111;
-    --surface-hover: #1c1c1c;
-    --text-primary: #f5f5f5;
-    --text-muted: #888888;
-    --accent: #f5f5f5;
+    --surface: #0b0a09;
+    --surface-2: #171614;
+    --surface-hover: #22201d;
+    --text-primary: #f5f2eb;
+    --text-muted: #a39d90;
+    --accent: #f5f2eb;
     --accent-hover: #ffffff;
-    --muted-border: #1a1a1a;
-    --muted-border-hover: #262626;
-    --shadow: rgba(0, 0, 0, 0.95);
-    --focus: rgba(255, 255, 255, 0.08);
+    --muted-border: #1f1d1a;
+    --muted-border-hover: #2e2b27;
+    --shadow: rgba(0, 0, 0, 0.9);
+    --focus: rgba(245, 242, 235, 0.1);
 
     /* Browser native & UI controls */
     color-scheme: dark;
-    --header-bg: rgba(0, 0, 0, 0.95);
-    --scrollbar-thumb: rgba(255, 255, 255, 0.12);
-    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+    --header-bg: rgba(0, 0, 0, 0.86);
+    --scrollbar-thumb: rgba(245, 242, 235, 0.12);
+    --scrollbar-thumb-hover: rgba(245, 242, 235, 0.22);
 
-    /* GitHub Heatmap activity levels (theme accent-based) */
-    --github-l0: #0d1117;
-    --github-l1: rgba(99, 102, 241, 0.28);
-    --github-l2: rgba(99, 102, 241, 0.55);
-    --github-l3: #6366f1;
-    --github-l4: #818cf8;
+    --github-l0: #141311;
+    --github-l1: rgba(255, 107, 31, 0.32);
+    --github-l2: rgba(255, 107, 31, 0.58);
+    --github-l3: #ff6b1f;
+    --github-l4: #ffa36b;
 }

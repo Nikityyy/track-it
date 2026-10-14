@@ -1,9 +1,11 @@
-const CACHE_NAME = 'trackit-cache-v8';
+const CACHE_NAME = 'trackit-cache-v9';
 
 const PRECACHE_URLS = [
     './',
     './index.html',
     './design-tokens.css',
+    './fonts/archivo-latin.woff2',
+    './fonts/archivo-latin-ext.woff2',
     './css/styles.css',
     './vendor/lucide.min.js',
     './vendor/web-haptics.js',

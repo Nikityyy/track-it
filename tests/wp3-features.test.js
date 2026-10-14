@@ -212,6 +212,6 @@ const createWorkoutSrcLatest = read('js/pages/create-workout.js');
 assert.ok(createWorkoutSrcLatest.includes('upBtn.disabled = isTop;'), 'updateExerciseIndices must disable up button on top exercise');
 assert.ok(createWorkoutSrcLatest.includes('downBtn.disabled = isBottom;'), 'updateExerciseIndices must disable down button on bottom exercise');
 assert.ok(!stylesCss.includes('.set-row:hover {'), 'styles.css must NOT have .set-row:hover background');
-assert.ok(stylesCss.includes('row-gap: 12px;'), 'styles.css must have row-gap in sticky form actions');
+assert.ok(/\.form-actions-sticky\s*\{[^}]*flex-wrap:\s*nowrap;/.test(stylesCss), 'sticky form actions must stay on one row on mobile');
 
 console.log('All WP3 feature tests passed successfully!');

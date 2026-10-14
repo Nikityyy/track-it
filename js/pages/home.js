@@ -70,7 +70,7 @@ async function renderHomePage() {
   }
 
   // --- Workout cards ---
-  const typeColors = generateTypeColors(Object.keys(typeCounts));
+  const typeColors = generateTypeColors(Object.keys(typeCounts).sort((a, b) => typeCounts[b] - typeCounts[a]));
 
   let recentHtml = '';
   if (recent.length > 0) {
@@ -284,20 +284,10 @@ async function renderHomePage() {
   let statsHtml = '';
   if (totalWorkouts > 0) {
     statsHtml = `
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-value">${totalWorkouts}</div>
-          <div class="stat-label">Gesamt</div>
+      <section class="section">
+        <div class="section-header">
+          <h3 class="section-title">Statistik</h3>
         </div>
-        <div class="stat-card">
-          <div class="stat-value">${thisWeekCount}</div>
-          <div class="stat-label">Diese Woche</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${avgRpe}</div>
-          <div class="stat-label">Ø RPE</div>
-        </div>
-      </div>
       ${heatmapHtml}
       <div class="charts-row">
         <div class="chart-container">
@@ -310,22 +300,32 @@ async function renderHomePage() {
           <canvas id="bar-chart" width="300" height="140"></canvas>
         </div>
       </div>
+      </section>
     `;
   }
+
+  const todayLabel = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  const heroFacts = totalWorkouts > 0
+    ? `<strong>${totalWorkouts}</strong> gesamt · Ø RPE <strong>${String(avgRpe).replace('.', ',')}</strong> · Streak <strong>${streak} ${streak === 1 ? 'Tag' : 'Tage'}</strong>`
+    : 'Noch kein Workout gespeichert.';
 
   app.innerHTML = `
     <div class="page page-home">
       ${draftBanner}
       
       <div class="home-hero">
-        <h2 class="page-title">Dashboard</h2>
+        <h2 class="visually-hidden">Übersicht</h2>
+        <span class="home-date">${todayLabel}</span>
+        <div class="home-score">
+          <span class="home-score-value">${thisWeekCount}</span>
+          <span class="home-score-label">${thisWeekCount === 1 ? 'Workout' : 'Workouts'}<span>diese Woche</span></span>
+        </div>
+        <p class="home-facts">${heroFacts}</p>
         <button class="btn btn-primary" id="btn-new-workout">
-          ${icon('plus', 18)}
+          ${icon('plus', 20)}
           <span>Neues Workout</span>
         </button>
       </div>
-
-      ${statsHtml}
 
       <section class="section">
         <div class="section-header">
@@ -336,6 +336,8 @@ async function renderHomePage() {
           ${recentHtml}
         </div>
       </section>
+
+      ${statsHtml}
     </div>
   `;
 
@@ -375,14 +377,15 @@ async function renderHomePage() {
 
 // ── Color generation ──
 function generateTypeColors(types) {
-  const palette = [
-    '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-    '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
-    '#0ea5e9', '#84cc16', '#a855f7', '#6366f1'
-  ];
+  const styles = getComputedStyle(document.documentElement);
+  const accent = styles.getPropertyValue('--color-accent').trim() || '#ff6b1f';
+  const ink = styles.getPropertyValue('--text-primary').trim() || '#f3f0e9';
+  const hex = /^#([0-9a-f]{6})$/i.test(ink) ? ink.slice(1) : 'f3f0e9';
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const alphas = [0.72, 0.48, 0.3, 0.18];
   const map = {};
   (types || []).forEach((t, i) => {
-    map[t] = palette[i % palette.length];
+    map[t] = i === 0 ? accent : `rgba(${r}, ${g}, ${b}, ${alphas[(i - 1) % alphas.length]})`;
   });
   return map;
 }
@@ -431,13 +434,13 @@ function renderDoughnutChart(canvasId, legendId, data, colorMap) {
 
   // Center text (theme-adaptive)
   ctx.fillStyle = textPrimary;
-  ctx.font = '700 20px Inter, system-ui, sans-serif';
+  ctx.font = '850 34px Archivo, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(total, cx, cy - 6);
-  ctx.font = '400 10px Inter, system-ui, sans-serif';
+  ctx.fillText(total, cx, cy - 8);
+  ctx.font = '500 12px Archivo, system-ui, sans-serif';
   ctx.fillStyle = textMuted;
-  ctx.fillText('Workouts', cx, cy + 10);
+  ctx.fillText('Workouts', cx, cy + 16);
 
   // Legend
   const legendEl = document.getElementById(legendId);
@@ -494,18 +497,10 @@ function renderBarChart(canvasId, data) {
     ctx.lineTo(x, padding.top + chartH);
     ctx.closePath();
 
-    // Gradient fill using theme accent
+    // Flat fill: the current week is the live one (accent), past weeks are ink
     const isCurrentWeek = i === data.length - 1;
     if (d.count > 0) {
-      const grad = ctx.createLinearGradient(x, y, x, padding.top + chartH);
-      if (isCurrentWeek) {
-        grad.addColorStop(0, colorAccent);
-        grad.addColorStop(1, colorAccentHover);
-      } else {
-        grad.addColorStop(0, colorAccent);
-        grad.addColorStop(1, surface2);
-      }
-      ctx.fillStyle = grad;
+      ctx.fillStyle = isCurrentWeek ? colorAccent : textMuted;
     } else {
       ctx.fillStyle = surface2;
       ctx.beginPath();
@@ -516,7 +511,7 @@ function renderBarChart(canvasId, data) {
     // Count label (theme-adaptive)
     if (d.count > 0) {
       ctx.fillStyle = textPrimary;
-      ctx.font = '600 11px Inter, system-ui, sans-serif';
+      ctx.font = '800 15px Archivo, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillText(d.count, x + barW / 2, y - 3);
@@ -524,7 +519,7 @@ function renderBarChart(canvasId, data) {
 
     // X-axis label (theme-adaptive)
     ctx.fillStyle = textMuted;
-    ctx.font = '400 9px Inter, system-ui, sans-serif';
+    ctx.font = '500 11px Archivo, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(d.label, x + barW / 2, padding.top + chartH + 6);
