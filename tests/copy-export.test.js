@@ -13,12 +13,12 @@ const context = {
 };
 vm.createContext(context);
 
-for (const file of ['js/utils.js', 'js/db.js', 'js/markdown.js']) {
+for (const file of ['js/utils.js', 'js/db.js', 'js/copy.js']) {
   const source = fs.readFileSync(path.join(root, file), 'utf8');
   vm.runInContext(source, context, { filename: file });
 }
 
-console.log('Testing compact export and empty RPE...');
+console.log('Testing copy export and empty RPE...');
 
 function set(label, reps, rpe, breakSeconds, extra = {}) {
   return { setId: label, label, reps, rpe, breakSeconds, note: '', skipped: false, ...extra };
@@ -42,7 +42,7 @@ const normalWorkout = {
   finisher: null
 };
 assert.equal(
-  context.exportWorkoutCompact(normalWorkout),
+  context.workoutCopyText(normalWorkout),
   '# Push Tag\n' +
   'Bankdrücken: 10/9/8 · RPE 7/8/9 · P 1:30/2:00/0:45\n' +
   'Notiz: S1: leicht; S3: Grind\n' +
@@ -52,10 +52,10 @@ assert.equal(
 const withoutNotes = { ...normalWorkout, name: '', notes: '   ', exercises: [{
   name: 'Dips', mode: 'normal', sets: [set('Satz 1', 12, 8, 60)]
 }] };
-const withoutNotesOut = context.exportWorkoutCompact(withoutNotes);
+const withoutNotesOut = context.workoutCopyText(withoutNotes);
 assert.equal(withoutNotesOut, `# Push – ${context.formatDateDE(normalWorkout.date)}\nDips: 12 · RPE 8 · P 1:00\n`);
 assert.ok(!withoutNotesOut.includes('Notiz'), 'Notiz/Notizen lines must be omitted when empty');
-console.log('✓ Compact format (normal) verified');
+console.log('✓ Copy format (normal) verified');
 
 // ── 2. L=R merged ──
 const lrSame = {
@@ -73,10 +73,10 @@ const lrSame = {
   }]
 };
 assert.equal(
-  context.exportWorkoutCompact(lrSame),
+  context.workoutCopyText(lrSame),
   '# Push Tag\nBulgarian Split Squat (L=R): 10/9 · RPE 8/9 · P 1:30/1:15\n'
 );
-console.log('✓ Compact format L=R merged verified');
+console.log('✓ Copy format L=R merged verified');
 
 // ── 3. L≠R separate ──
 const lrDiff = {
@@ -93,10 +93,10 @@ const lrDiff = {
   }]
 };
 assert.equal(
-  context.exportWorkoutCompact(lrDiff),
+  context.workoutCopyText(lrDiff),
   '# Push Tag\nBulgarian Split Squat: L: 10/9 · R: 9/9 · RPE L: 8/9 · R: 8/10 · P 1:30/1:15\n'
 );
-console.log('✓ Compact format L≠R separate verified');
+console.log('✓ Copy format L≠R separate verified');
 
 // ── 4. Skipped set ──
 const skipped = {
@@ -113,10 +113,10 @@ const skipped = {
   }]
 };
 assert.equal(
-  context.exportWorkoutCompact(skipped),
+  context.workoutCopyText(skipped),
   '# Push Tag\nBankdrücken: 10/x/8 · RPE 8/x/9 · P 1:30/x/–\n'
 );
-console.log('✓ Compact format skipped set verified');
+console.log('✓ Copy format skipped set verified');
 
 // ── 5. Empty RPE ──
 const emptyRpe = {
@@ -134,12 +134,10 @@ const emptyRpe = {
   }
 };
 assert.equal(
-  context.exportWorkoutCompact(emptyRpe),
-  '# Push Tag\nKlimmzüge: 8/7 · RPE –/9 · P 2:00/–\nFinisher Burpees: 5 Runden · RPE –\n'
+  context.workoutCopyText(emptyRpe),
+  '# Push Tag\nKlimmzüge: 8/7 · RPE –/9 · P 2:00/–\nFinisher (AMRAP)\nBurpees: 5 Runden\n'
 );
-const emptyRpeMd = context.exportWorkoutMarkdown(emptyRpe);
-assert.ok(emptyRpeMd.includes('| Satz 1 | 8 | – |'), 'Markdown export must show empty RPE as –');
-assert.ok(!emptyRpeMd.includes('null'), 'Markdown export must never print null');
+assert.ok(!context.workoutCopyText(emptyRpe).includes('null'), 'copy text must never print null');
 const newSet = context.createEmptySet(0, 'normal');
 assert.equal(newSet.rpe, null, 'first set of an exercise must have no RPE');
 assert.equal(context.createEmptySet(1, 'lr').rpe, null);
@@ -153,13 +151,13 @@ const decimals = {
               { name: 'Rudern 2x 12.5 kg', mode: 'normal', sets: [set('Satz 1', 10, 7, 60)] }]
 };
 assert.equal(
-  context.exportWorkoutCompact(decimals),
+  context.workoutCopyText(decimals),
   '# Push Tag\nCurls 20,5kg: 12 · RPE 8 · P 1:00\nRudern 2x 12,5 kg: 10 · RPE 7 · P 1:00\n'
 );
 assert.equal(decimals.exercises[0].name, 'Curls 20.5kg', 'export must not mutate the workout');
 console.log('✓ Weight decimal normalization verified');
 
-// ── 7. Finisher only when present ──
+// ── 7. Finisher: name, type, entries, notes; only when present ──
 const finisherNormal = {
   ...normalWorkout,
   notes: '',
@@ -168,19 +166,45 @@ const finisherNormal = {
     type: 'EMOM',
     name: 'Ende',
     entries: [
-      { id: 'f1', name: 'Kettlebell Swings', result: '10 min', rpe: 9, note: '', sets: [] },
+      { id: 'f1', name: 'Kettlebell Swings', result: '10 min', rpe: 9, note: '24kg, Griff\nrutscht', sets: [] },
       { id: 'f2', name: 'Plank', result: '', rpe: 7, note: '', sets: [], skipped: true }
     ]
   }
 };
 assert.equal(
-  context.exportWorkoutCompact(finisherNormal),
-  '# Push Tag\nDips: 12 · RPE 8 · P 1:00\nFinisher Kettlebell Swings: 10 min · RPE 9\nFinisher Plank: x\n'
+  context.workoutCopyText(finisherNormal),
+  '# Push Tag\nDips: 12 · RPE 8 · P 1:00\nFinisher Ende (EMOM)\nKettlebell Swings: 10 min · RPE 9\nNotiz: 24kg, Griff rutscht\nPlank: x\n'
 );
-assert.ok(!context.exportWorkoutCompact({ ...finisherNormal, finisher: null }).includes('Finisher'));
+assert.ok(!context.workoutCopyText({ ...finisherNormal, finisher: null }).includes('Finisher'));
 console.log('✓ Finisher lines verified');
 
-// ── 8. Old data with rpe 5 stays unchanged, null is accepted ──
+// ── 8. Only what was entered appears ──
+const sparse = {
+  ...normalWorkout,
+  notes: '',
+  exercises: [
+    { name: 'Klimmzüge', mode: 'normal', sets: [set('Satz 1', 8, null, 0), set('Satz 2', 6, null, 0)] },
+    { name: '', mode: 'normal', sets: [set('Satz 1', 0, null, 0)] }
+  ],
+  // toggled on but never filled in
+  finisher: { type: 'AMRAP', name: '', entries: [{ id: 'f1', name: '', result: '', rpe: 5, note: '', sets: [] }] }
+};
+assert.equal(context.workoutCopyText(sparse), '# Push Tag\nKlimmzüge: 8/6\n',
+  'no RPE/P part without values, no blank exercise, no empty finisher');
+console.log('✓ Empty parts omitted');
+
+// ── 9. A pause after the left side is kept ──
+const leftPause = {
+  ...normalWorkout,
+  notes: '',
+  exercises: [{ name: 'Ausfallschritt', mode: 'lr', sets: [
+    set('Satz 1 (links)', 10, 8, 20), set('Satz 1 (rechts)', 10, 8, 90)
+  ] }]
+};
+assert.equal(context.workoutCopyText(leftPause), '# Push Tag\nAusfallschritt (L=R): 10 · RPE 8 · P 0:20+1:30\n');
+console.log('✓ Left-side pause kept');
+
+// ── 10. Old data with rpe 5 stays unchanged, null is accepted ──
 const oldWorkout = {
   workoutId: 'old-1',
   type: 'Push',
@@ -207,4 +231,4 @@ assert.equal(migrated.exercises[0].sets[1].rpe, null, 'migration must keep null 
 assert.deepEqual(migrated.exercises, oldWorkout.exercises, 'migration must not change complete sets');
 console.log('✓ Old data with rpe 5 unchanged verified');
 
-console.log('\nAll compact export tests passed successfully!');
+console.log('\nAll copy export tests passed successfully!');

@@ -1,30 +1,77 @@
 let _draftTimer = null;
+let _draftSaveTimer = null;
 let _savedSuccessfully = false;
+let _editorRenderToken = 0;
+let _draftBaselineSnapshot = null;
+let _lastDraftSnapshot = null;
+
+const DRAFT_AUTO_OPEN_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+function getDraftPath(draft) {
+  return draft && draft.isEdit && draft.editId ? `/edit/${draft.editId}?draft=1` : '/create?draft=1';
+}
+
+/* Ask what to do when a different unsaved workout is still open.
+ * Resolves true to discard it and continue, false to go back to it. */
+function askAboutOpenDraft(draft) {
+  return new Promise(resolve => {
+    showModal({
+      title: 'Ungespeichertes Workout',
+      bodyText: `„${draft.workout.name || 'Unbenanntes Workout'}“ ist noch nicht gespeichert. Möchtest du es fortsetzen oder verwerfen?`,
+      confirmText: 'Verwerfen',
+      cancelText: 'Fortsetzen',
+      danger: true,
+      onConfirm: () => resolve(true),
+      onCancel: () => resolve(false)
+    });
+  });
+}
 
 async function renderCreateWorkoutPage(params) {
   const app = document.getElementById('app-content');
+  const token = ++_editorRenderToken;
   let isEdit = !!(params && params.id);
   const isDraftResume = window.location.hash.includes('draft=1');
   const types = await getWorkoutTypes();
-  const draft = await getDraft();
+  let draft = await getDraft();
   let workout = null;
   let editId = params && params.id ? params.id : null;
+  let fromDraft = false;
 
-  if (isEdit) {
+  if (draft && draft.workout && !isDraftResume) {
+    const sameWorkout = isEdit && draft.isEdit && draft.editId === editId;
+    if (sameWorkout) {
+      // Unsaved changes to this very workout: continue with them
+      workout = draft.workout;
+      fromDraft = true;
+      showToast('Ungespeicherte Änderungen wiederhergestellt');
+    } else {
+      const discard = await askAboutOpenDraft(draft);
+      if (token !== _editorRenderToken) return;
+      if (!discard) {
+        Router.navigate(getDraftPath(draft), { replace: true });
+        return;
+      }
+      await clearDraft();
+      draft = null;
+    }
+  }
+
+  if (isEdit && !workout) {
     if (isDraftResume && draft?.isEdit && draft.editId === editId && draft.workout) {
       workout = draft.workout;
+      fromDraft = true;
     } else {
       workout = await getWorkout(editId);
     }
     if (!workout) {
+      if (token !== _editorRenderToken) return;
       app.innerHTML = `<div class="page"><div class="empty-state"><p class="empty-state-text">Workout nicht gefunden.</p></div></div>`;
       return;
     }
-    if (!draft || !draft.isEdit || draft.editId !== editId) {
-      await saveDraft({ workout: cloneWorkout(workout), isEdit: true, editId });
-    }
-  } else if (isDraftResume && draft?.workout) {
+  } else if (!isEdit && isDraftResume && draft?.workout) {
     workout = draft.workout;
+    fromDraft = true;
     if (draft.isEdit && draft.editId) {
       isEdit = true;
       editId = draft.editId;
@@ -35,20 +82,29 @@ async function renderCreateWorkoutPage(params) {
     workout = createEmptyWorkout(types.length > 0 ? types[0].name : '');
   }
 
+  // The user may have navigated away while we were loading
+  if (token !== _editorRenderToken) return;
+
   renderWorkoutForm(workout, types, isEdit, {
     editId,
     resetHistory: true,
-    formHistory: draft && draft.workout === workout ? draft.formHistory : null
+    formHistory: fromDraft && draft ? draft.formHistory : null
   });
+
+  // A draft is only worth keeping once the form differs from what was opened.
+  // Anything resumed from a draft already is one.
+  const opened = collectWorkoutFromForm();
+  _draftBaselineSnapshot = fromDraft || !opened ? null : comparableWorkoutSnapshot(opened);
+  _lastDraftSnapshot = fromDraft && opened ? comparableWorkoutSnapshot(opened) : null;
+  window._hasUnsavedChanges = fromDraft;
+
   startAutoDraft();
-  
-  window._hasUnsavedChanges = false;
-  Router.onBeforeNavigate = () => {
-    if (window._hasUnsavedChanges) {
-      return confirm('Du hast ungespeicherte Änderungen. Möchtest du wirklich abbrechen? Dein Fortschritt ist als Entwurf gesichert.');
-    }
-    return true;
-  };
+}
+
+function leaveWorkoutEditor() {
+  _editorRenderToken++;
+  if (typeof suspendActiveRestTimer === 'function') suspendActiveRestTimer();
+  stopAutoDraft();
 }
 
 function cloneWorkout(workout) {
@@ -56,25 +112,59 @@ function cloneWorkout(workout) {
 }
 
 function startAutoDraft() {
-  stopAutoDraft();
+  stopAutoDraft(false);
   _savedSuccessfully = false;
-  _draftTimer = setInterval(() => {
-    const workout = collectWorkoutFromForm();
-    if (workout) saveDraft({ ...getDraftMeta(), workout, formHistory: getFormHistoryState() });
-  }, 3000);
+  // Safety net; the real saves happen on every change and when the app is hidden
+  _draftTimer = setInterval(saveCurrentDraft, 3000);
+}
+
+function scheduleDraftSave() {
+  clearTimeout(_draftSaveTimer);
+  _draftSaveTimer = setTimeout(saveCurrentDraft, 400);
 }
 
 function saveCurrentDraft() {
+  clearTimeout(_draftSaveTimer);
+  _draftSaveTimer = null;
+  if (_savedSuccessfully) return;
   const workout = collectWorkoutFromForm();
-  if (workout) saveDraft({ ...getDraftMeta(), workout, formHistory: getFormHistoryState() });
+  if (!workout) return;
+  const snapshot = comparableWorkoutSnapshot(workout);
+
+  if (_draftBaselineSnapshot !== null && snapshot === _draftBaselineSnapshot) {
+    // Back to exactly what was opened: nothing to keep
+    if (_lastDraftSnapshot !== null) {
+      _lastDraftSnapshot = null;
+      window._hasUnsavedChanges = false;
+      clearDraft();
+    }
+    return;
+  }
+  if (snapshot === _lastDraftSnapshot) return;
+
+  _lastDraftSnapshot = snapshot;
+  window._hasUnsavedChanges = true;
+  saveDraft({ ...getDraftMeta(), workout, formHistory: getFormHistoryState() });
 }
 
 function stopAutoDraft(shouldSave = true) {
   if (shouldSave && !_savedSuccessfully) saveCurrentDraft();
+  clearTimeout(_draftSaveTimer);
+  _draftSaveTimer = null;
   if (_draftTimer) {
     clearInterval(_draftTimer);
     _draftTimer = null;
   }
+}
+
+// Closing or backgrounding the app (iOS gives no unload event for PWAs)
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && document.getElementById('workout-form')) saveCurrentDraft();
+  });
+  window.addEventListener('pagehide', () => {
+    if (document.getElementById('workout-form')) saveCurrentDraft();
+  });
 }
 
 function getDraftMeta() {
@@ -95,7 +185,7 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
   app.innerHTML = `
     <div class="page page-create">
       <div class="page-header">
-        <a href="#${isEdit ? '/workout/' + editId : '/'}" class="btn-icon" aria-label="Zurück">${icon('chevronLeft', 20)}</a>
+        <button type="button" class="btn-icon" id="btn-back-editor" aria-label="Zurück">${icon('chevronLeft', 20)}</button>
         <h2 class="page-title">${isEdit ? 'Workout bearbeiten' : 'Neues Workout'}</h2>
       </div>
 
@@ -167,6 +257,7 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
   updateExerciseIndices();
   updateSetDeleteStates();
   updateUndoRedoButtons();
+  if (typeof resumePersistedRestTimer === 'function') resumePersistedRestTimer();
 }
 
 function renderExerciseCard(exercise, index, totalCount = 1) {
@@ -323,11 +414,16 @@ function bindFormEvents(workout) {
     scheduleHistoryRecord();
   });
 
-  form.addEventListener('input', () => { window._hasUnsavedChanges = true; scheduleHistoryRecord(); });
+  form.addEventListener('input', () => { scheduleHistoryRecord(); scheduleDraftSave(); });
   form.addEventListener('change', (e) => {
-    window._hasUnsavedChanges = true;
     clampNumberInput(e.target);
     scheduleHistoryRecord();
+    scheduleDraftSave();
+  });
+
+  // Leaving keeps the workout as a draft; nothing is lost, so no prompt
+  document.getElementById('btn-back-editor').addEventListener('click', () => {
+    Router.back(form.dataset.isEdit === 'true' ? '/workout/' + form.dataset.editId : '/');
   });
 
   document.getElementById('btn-undo').addEventListener('click', undoFormChange);
@@ -480,14 +576,10 @@ function bindFormEvents(workout) {
     const performCancel = async () => {
       pauseActiveRestTimer(false);
       stopAutoDraft(false);
+      _savedSuccessfully = true;
       window._hasUnsavedChanges = false;
-      Router.onBeforeNavigate = null;
       await clearDraft();
-      if (form.dataset.isEdit === 'true') {
-        Router.navigate('/workout/' + form.dataset.editId);
-      } else {
-        Router.navigate('/');
-      }
+      Router.back(form.dataset.isEdit === 'true' ? '/workout/' + form.dataset.editId : '/');
     };
 
     if (hasActiveDraftOrChanges) {
@@ -513,8 +605,8 @@ function bindFormEvents(workout) {
       return;
     }
     stopAutoDraft(false);
+    _savedSuccessfully = true;
     window._hasUnsavedChanges = false;
-    Router.onBeforeNavigate = null;
 
     const isEditMode = form.dataset.isEdit === 'true';
     if (isEditMode) {
@@ -527,10 +619,15 @@ function bindFormEvents(workout) {
 
     await saveWorkout(w);
     await clearDraft();
-    _savedSuccessfully = true;
     if (window.haptic) window.haptic.trigger('success');
     showToast(isEditMode ? 'Workout gespeichert' : 'Workout erstellt');
-    Router.navigate('/workout/' + w.workoutId);
+    // Replace the editor in history: back from the workout must not reopen it
+    const detailHash = '#/workout/' + w.workoutId;
+    if (Router.previousHash() === detailHash) {
+      Router.back('/workout/' + w.workoutId);
+    } else {
+      Router.navigate('/workout/' + w.workoutId, { replace: true });
+    }
   });
 }
 

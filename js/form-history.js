@@ -50,6 +50,7 @@ function recordFormHistory() {
   }
   _formHistoryIndex = _formHistory.length - 1;
   updateUndoRedoButtons();
+  if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 }
 
 function undoFormChange() {
@@ -137,6 +138,7 @@ function restoreHistoryAt(index) {
 
   _isRestoringHistory = false;
   updateUndoRedoButtons();
+  if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 }
 
 function tryRestoreValuesInPlace(workout) {

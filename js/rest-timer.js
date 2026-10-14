@@ -8,6 +8,46 @@ function renderRestTimerButton(isSkipped) {
   `;
 }
 
+/* A running rest timer is persisted as { setId, startedAt, elapsedBefore }.
+ * Elapsed time is always derived from the wall clock, so the timer keeps
+ * counting while the app is closed and picks up where it should on reopen. */
+const REST_TIMER_STORAGE_KEY = 'trackit-rest-timer';
+
+function persistRestTimer(state) {
+  try {
+    if (state) localStorage.setItem(REST_TIMER_STORAGE_KEY, JSON.stringify(state));
+    else localStorage.removeItem(REST_TIMER_STORAGE_KEY);
+  } catch (e) { /* storage unavailable: timer still runs in memory */ }
+}
+
+function readPersistedRestTimer() {
+  try {
+    const raw = localStorage.getItem(REST_TIMER_STORAGE_KEY);
+    const state = raw ? JSON.parse(raw) : null;
+    if (!state || !state.setId || !Number.isFinite(state.startedAt)) return null;
+    return state;
+  } catch (e) {
+    return null;
+  }
+}
+
+function startRestTimer(row, btn, elapsedBefore, startedAt) {
+  const input = row.querySelector('.set-break');
+  _activeRestTimer = {
+    row,
+    btn,
+    input,
+    elapsedBefore,
+    startedAt,
+    interval: setInterval(updateActiveRestTimer, 1000)
+  };
+  btn.classList.add('active');
+  btn.setAttribute('aria-label', 'Pause pausieren');
+  btn.title = 'Pause pausieren';
+  persistRestTimer({ setId: row.dataset?.setId, startedAt, elapsedBefore });
+  updateActiveRestTimer();
+}
+
 function handleRestTimerButton(btn) {
   const row = btn.closest('.set-row');
   if (!row || row.classList.contains('skipped')) return;
@@ -20,22 +60,14 @@ function handleRestTimerButton(btn) {
   pauseActiveRestTimer(true);
   const input = row.querySelector('.set-break');
   const elapsedBefore = Math.max(0, parseInt(input?.value, 10) || 0);
-  _activeRestTimer = {
-    row,
-    btn,
-    input,
-    elapsedBefore,
-    startedAt: Date.now(),
-    interval: setInterval(updateActiveRestTimer, 1000)
-  };
-  btn.classList.add('active');
-  btn.setAttribute('aria-label', 'Pause pausieren');
-  btn.title = 'Pause pausieren';
-  updateActiveRestTimer();
+  startRestTimer(row, btn, elapsedBefore, Date.now());
 }
 
 function pauseActiveRestTimer(shouldRecord) {
-  if (!_activeRestTimer) return;
+  if (!_activeRestTimer) {
+    persistRestTimer(null);
+    return;
+  }
   updateActiveRestTimer();
   if (_activeRestTimer.interval) {
     clearInterval(_activeRestTimer.interval);
@@ -46,9 +78,36 @@ function pauseActiveRestTimer(shouldRecord) {
     _activeRestTimer.btn.title = 'Pause fortsetzen';
   }
   _activeRestTimer = null;
+  persistRestTimer(null);
   if (shouldRecord && typeof recordFormHistory === 'function') {
     recordFormHistory();
   }
+}
+
+/* Leaving the editor (or the page being torn down): stop ticking in memory
+ * but keep the persisted state, so the timer is still running on return. */
+function suspendActiveRestTimer() {
+  if (!_activeRestTimer) return;
+  updateActiveRestTimer();
+  if (_activeRestTimer.interval) clearInterval(_activeRestTimer.interval);
+  _activeRestTimer = null;
+}
+
+/* Re-attach a persisted timer to its set row after the editor renders. */
+function resumePersistedRestTimer() {
+  const state = readPersistedRestTimer();
+  if (!state) return;
+  if (_activeRestTimer && _activeRestTimer.row && _activeRestTimer.row.isConnected) return;
+  if (_activeRestTimer) suspendActiveRestTimer();
+
+  const row = Array.from(document.querySelectorAll('.set-row'))
+    .find(r => r.dataset.setId === String(state.setId));
+  const btn = row?.querySelector('.rest-timer-btn');
+  if (!row || !btn || row.classList.contains('skipped')) {
+    persistRestTimer(null);
+    return;
+  }
+  startRestTimer(row, btn, Math.max(0, Number(state.elapsedBefore) || 0), state.startedAt);
 }
 
 function updateActiveRestTimer() {

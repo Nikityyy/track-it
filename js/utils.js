@@ -205,45 +205,88 @@ function escapeHtml(str) {
         .replace(/\r/g, '');
 }
 
-/* Simple SPA Router */
+/* Simple SPA Router
+ * Keeps its own view of the history stack (depth + hashes) so "back" can
+ * return to the real previous screen, and flows like save can replace the
+ * editor entry instead of stacking another page on top of it. */
+const ROUTER_STACK_KEY = 'trackit-nav-stack';
+
 const Router = {
     _routes: {},
     _currentCleanup: null,
+    _depth: 0,
+    _stack: [],
+    _pendingReplace: false,
 
     register(path, handler) {
         this._routes[path] = handler;
     },
 
-    navigate(path) {
+    navigate(path, options = {}) {
         // We set a flag to avoid double haptic when hashchange triggers _resolve
         this._isNavigating = true;
         if (window.haptic) window.haptic.trigger(20);
-        window.location.hash = path;
+        const target = '#' + path;
+        if (options.replace) {
+            this._pendingReplace = true;
+            if (window.location.hash === target) {
+                this._pendingReplace = false;
+                this._resolve();
+                return;
+            }
+            window.location.replace(target);
+        } else {
+            window.location.hash = path;
+        }
+    },
+
+    /* Go to the previous in-app screen, or to `fallback` when the app was
+     * opened directly on this screen (nothing of ours to go back to). */
+    back(fallback = '/') {
+        if (this._depth > 0) {
+            this._isNavigating = true;
+            if (window.haptic) window.haptic.trigger(20);
+            window.history.back();
+        } else {
+            this.navigate(fallback, { replace: true });
+        }
+    },
+
+    previousHash() {
+        return this._depth > 0 ? this._stack[this._depth - 1] || null : null;
+    },
+
+    _syncHistoryEntry() {
+        const hash = window.location.hash || '#/';
+        const state = window.history.state;
+        if (this._pendingReplace) {
+            this._pendingReplace = false;
+        } else if (state && typeof state.trackitDepth === 'number') {
+            this._depth = state.trackitDepth;
+        } else if (this._initialized) {
+            this._depth = this._depth + 1;
+            this._stack = this._stack.slice(0, this._depth);
+        }
+        this._stack[this._depth] = hash;
+        try {
+            window.history.replaceState({ ...(state || {}), trackitDepth: this._depth }, '', window.location.href);
+        } catch (e) { /* history API unavailable */ }
+        try {
+            sessionStorage.setItem(ROUTER_STACK_KEY, JSON.stringify(this._stack.slice(0, this._depth + 1)));
+        } catch (e) { /* storage unavailable */ }
     },
 
     _resolve() {
-        if (this._isReverting) {
-            this._isReverting = false;
-            return;
-        }
-
-        if (typeof this.onBeforeNavigate === 'function') {
-            const allow = this.onBeforeNavigate();
-            if (!allow) {
-                this._isReverting = true;
-                window.location.hash = this._lastHash || '/';
-                return;
-            }
-        }
+        this._syncHistoryEntry();
 
         if (!this._isNavigating) {
             if (window.haptic) window.haptic.trigger(20);
         }
         this._isNavigating = false;
-        
+
         const rawHash = window.location.hash.slice(1) || '/';
         this._lastHash = window.location.hash;
-        
+
         // Strip query string for route matching but preserve it for page access
         const hash = rawHash.split('?')[0] || '/';
         const parts = hash.split('/').filter(Boolean);
@@ -295,8 +338,18 @@ const Router = {
 
     init() {
         if (!this._lastHash) this._lastHash = window.location.hash || '#/';
+        const state = window.history.state;
+        if (state && typeof state.trackitDepth === 'number') {
+            // Reload of an existing entry: restore what we knew about the stack
+            this._depth = state.trackitDepth;
+            try {
+                const saved = JSON.parse(sessionStorage.getItem(ROUTER_STACK_KEY) || '[]');
+                if (Array.isArray(saved)) this._stack = saved.slice(0, this._depth + 1);
+            } catch (e) { /* ignore */ }
+        }
         window.addEventListener('hashchange', () => this._resolve());
         this._resolve();
+        this._initialized = true;
     }
 };
 

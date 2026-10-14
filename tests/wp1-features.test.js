@@ -21,7 +21,7 @@ assert.equal(descMatches ? descMatches.length : 0, 1, 'There should be exactly o
 
 // 2. Test service-worker.js requirements
 const swContent = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.ok(swContent.includes("CACHE_NAME = 'trackit-cache-v9'"), 'Cache name should be trackit-cache-v9');
+assert.ok(swContent.includes("CACHE_NAME = 'trackit-cache-v10'"), 'Cache name should be trackit-cache-v10');
 assert.ok(swContent.includes("'./fonts/archivo-latin.woff2'") && swContent.includes("'./fonts/archivo-latin-ext.woff2'"), 'PRECACHE_URLS should contain the self-hosted fonts');
 assert.ok(swContent.includes("'./vendor/lucide.min.js'"), 'PRECACHE_URLS should contain vendor/lucide.min.js');
 assert.ok(swContent.includes("'./vendor/web-haptics.js'"), 'PRECACHE_URLS should contain vendor/web-haptics.js');

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trackit-cache-v9';
+const CACHE_NAME = 'trackit-cache-v10';
 
 const PRECACHE_URLS = [
     './',
@@ -11,7 +11,7 @@ const PRECACHE_URLS = [
     './vendor/web-haptics.js',
     './js/db.js',
     './js/utils.js',
-    './js/markdown.js',
+    './js/copy.js',
     './js/form-history.js',
     './js/rest-timer.js',
     './js/app.js',

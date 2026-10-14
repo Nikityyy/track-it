@@ -138,14 +138,14 @@ assert.ok(detailSrc.includes("showToast('Grafik konnte nicht erstellt werden')")
 assert.ok(detailSrc.includes('if (!ctx)'), 'shareWorkoutGraphic must guard against null canvas context');
 console.log('✓ workout-detail error handling and back button verified');
 
-// ── 11. Markdown export includes final workout notes ──
-const markdownSrc = read('js/markdown.js');
-const mdContext = {
+// ── 11. Copy export includes final workout notes ──
+const copySrc = read('js/copy.js');
+const copyContext = {
   formatDateDE: (d) => '10.09.2026',
   formatDuration: (s) => '1:30'
 };
-vm.createContext(mdContext);
-vm.runInContext(markdownSrc, mdContext);
+vm.createContext(copyContext);
+vm.runInContext(copySrc, copyContext);
 
 const sampleWorkoutWithNotes = {
   name: 'Test Workout',
@@ -153,8 +153,8 @@ const sampleWorkoutWithNotes = {
   exercises: [{ name: 'Bankdrücken', sets: [{ label: '1', reps: 10, rpe: 8, breakSeconds: 90, note: '' }] }],
   notes: 'Felt strong today, good pump.'
 };
-const exportedMdWithNotes = mdContext.exportWorkoutMarkdown(sampleWorkoutWithNotes);
-assert.ok(exportedMdWithNotes.includes('## Notizen\n\nFelt strong today, good pump.'), 'exportWorkoutMarkdown must include workout notes');
+const exportedWithNotes = copyContext.workoutCopyText(sampleWorkoutWithNotes);
+assert.ok(exportedWithNotes.includes('Notizen: Felt strong today, good pump.'), 'workoutCopyText must include workout notes');
 
 const sampleWorkoutWithoutNotes = {
   name: 'Test Workout',
@@ -162,8 +162,8 @@ const sampleWorkoutWithoutNotes = {
   exercises: [{ name: 'Bankdrücken', sets: [{ label: '1', reps: 10, rpe: 8, breakSeconds: 90, note: '' }] }],
   notes: '   '
 };
-const exportedMdWithoutNotes = mdContext.exportWorkoutMarkdown(sampleWorkoutWithoutNotes);
-assert.ok(!exportedMdWithoutNotes.includes('## Notizen'), 'exportWorkoutMarkdown must omit Notizen section when notes are empty');
-console.log('✓ Markdown export workout notes verified');
+const exportedWithoutNotes = copyContext.workoutCopyText(sampleWorkoutWithoutNotes);
+assert.ok(!exportedWithoutNotes.includes('Notizen'), 'workoutCopyText must omit Notizen when notes are empty');
+console.log('✓ Copy export workout notes verified');
 
 console.log('\nAll adversarial edge case tests passed successfully!');

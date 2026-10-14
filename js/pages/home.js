@@ -51,21 +51,29 @@ async function renderHomePage() {
 
   // --- Draft banner ---
   let draftBanner = '';
-  if (draft && draft.workout) {
+  const hasDraft = !!(draft && draft.workout);
+  if (hasDraft) {
+    const dw = draft.workout;
+    const dSets = (dw.exercises || []).reduce((n, ex) => n + (ex.sets ? ex.sets.length : 0), 0);
+    const dExercises = (dw.exercises || []).length;
+    const savedAt = draft.savedAt ? new Date(draft.savedAt) : null;
+    const savedLabel = savedAt && !Number.isNaN(savedAt.getTime())
+      ? savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      : '';
+    const restTimer = typeof readPersistedRestTimer === 'function' ? readPersistedRestTimer() : null;
     draftBanner = `
-      <div class="card draft-banner" id="draft-banner">
-        <div class="draft-banner-content">
-          <div class="draft-banner-icon">${icon('fileText', 20)}</div>
-          <div class="draft-banner-text">
-            <span class="draft-banner-title">${draft.isEdit ? 'Bearbeitung offen' : 'Entwurf vorhanden'}</span>
-            <span class="draft-banner-sub">${escapeHtml(draft.workout.name || 'Unbenanntes Workout')}</span>
-          </div>
+      <section class="draft-banner" id="draft-banner" aria-label="Nicht gespeichertes Workout">
+        <div class="draft-banner-head">
+          <span class="draft-banner-title">${draft.isEdit ? 'Bearbeitung nicht gespeichert' : 'Workout nicht gespeichert'}${savedLabel ? ` · ${savedLabel}` : ''}</span>
+          ${restTimer ? `<span class="draft-banner-clock" data-started-at="${restTimer.startedAt}" data-elapsed-before="${Number(restTimer.elapsedBefore) || 0}">Pause <b>–</b></span>` : ''}
         </div>
+        <span class="draft-banner-name">${escapeHtml(dw.name || 'Unbenanntes Workout')}</span>
+        <span class="draft-banner-sub">${dExercises} ${dExercises === 1 ? 'Übung' : 'Übungen'} · ${dSets} ${dSets === 1 ? 'Satz' : 'Sätze'}</span>
         <div class="draft-banner-actions">
-          <button class="btn btn-primary btn-sm" id="resume-draft">Fortsetzen</button>
-          <button class="btn btn-ghost btn-sm" id="discard-draft">Verwerfen</button>
+          <button class="btn btn-primary" id="resume-draft">Weiter trainieren</button>
+          <button class="btn btn-ghost" id="discard-draft">Verwerfen</button>
         </div>
-      </div>
+      </section>
     `;
   }
 
@@ -97,7 +105,7 @@ async function renderHomePage() {
             <div class="workout-card-name">${escapeHtml(w.name)}</div>
             <div class="workout-card-chips">
               <span class="chip">${icon('layers', 12)} ${exCount} ${exCount === 1 ? 'Übung' : 'Übungen'}</span>
-              <span class="chip">${icon('hash', 12)} ${setCount} Sätze</span>
+              <span class="chip">${icon('hash', 12)} ${setCount} ${setCount === 1 ? 'Satz' : 'Sätze'}</span>
               ${wAvg ? `<span class="chip chip-rpe">RPE ${wAvg}</span>` : ''}
             </div>
           </div>
@@ -321,7 +329,7 @@ async function renderHomePage() {
           <span class="home-score-label">${thisWeekCount === 1 ? 'Workout' : 'Workouts'}<span>diese Woche</span></span>
         </div>
         <p class="home-facts">${heroFacts}</p>
-        <button class="btn btn-primary" id="btn-new-workout">
+        <button class="btn ${hasDraft ? 'btn-ghost' : 'btn-primary'}" id="btn-new-workout">
           ${icon('plus', 20)}
           <span>Neues Workout</span>
         </button>
@@ -340,6 +348,20 @@ async function renderHomePage() {
       ${statsHtml}
     </div>
   `;
+
+  // Live rest clock in the draft banner; stops once the banner is gone
+  const clock = document.querySelector('.draft-banner-clock');
+  if (clock) {
+    const tickClock = () => {
+      if (!clock.isConnected) { clearInterval(clockTimer); return; }
+      const elapsed = (Number(clock.dataset.elapsedBefore) || 0) +
+        Math.max(0, Math.floor((Date.now() - Number(clock.dataset.startedAt)) / 1000));
+      const m = Math.floor(elapsed / 60);
+      clock.querySelector('b').textContent = `${m}:${String(elapsed % 60).padStart(2, '0')}`;
+    };
+    const clockTimer = setInterval(tickClock, 1000);
+    tickClock();
+  }
 
   // --- Event listeners ---
   document.getElementById('btn-new-workout')?.addEventListener('click', () => {

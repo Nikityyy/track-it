@@ -164,15 +164,52 @@ async function deleteWorkoutType(id) {
   return dbDelete(STORES.workoutTypes, id);
 }
 
+/* Drafts live in IndexedDB, plus a synchronous localStorage mirror of the
+ * workout itself. iOS can freeze or kill a PWA before an IndexedDB write
+ * finishes; the mirror is written synchronously, so the latest edit survives.
+ * getDraft returns whichever copy is newer. */
+const DRAFT_MIRROR_KEY = 'trackit-draft';
+const REST_TIMER_KEY = 'trackit-rest-timer';
+
+function writeDraftMirror(record) {
+  try {
+    const { formHistory, ...rest } = record;
+    localStorage.setItem(DRAFT_MIRROR_KEY, JSON.stringify(rest));
+  } catch (e) { /* storage full or unavailable: IndexedDB still has it */ }
+}
+
+function readDraftMirror() {
+  try {
+    const raw = localStorage.getItem(DRAFT_MIRROR_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function saveDraft(draft) {
-  await dbPut(STORES.drafts, { key: 'current', ...draft, savedAt: new Date().toISOString() });
+  const record = { key: 'current', ...draft, savedAt: new Date().toISOString() };
+  writeDraftMirror(record);
+  await dbPut(STORES.drafts, record);
 }
 
 async function getDraft() {
-  return dbGet(STORES.drafts, 'current');
+  const stored = await dbGet(STORES.drafts, 'current');
+  const mirror = readDraftMirror();
+  if (!mirror || !mirror.workout) return stored;
+  if (!stored || !stored.workout) return { key: 'current', ...mirror, formHistory: null };
+  if (new Date(mirror.savedAt) > new Date(stored.savedAt)) {
+    // The IndexedDB write did not finish; its undo history is older than the mirror
+    return { key: 'current', ...mirror, formHistory: null };
+  }
+  return stored;
 }
 
 async function clearDraft() {
+  try {
+    localStorage.removeItem(DRAFT_MIRROR_KEY);
+    localStorage.removeItem(REST_TIMER_KEY);
+  } catch (e) { /* ignore */ }
   return dbDelete(STORES.drafts, 'current');
 }
 

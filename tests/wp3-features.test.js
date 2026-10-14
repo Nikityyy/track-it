@@ -147,7 +147,7 @@ const detailSrc = read('js/pages/workout-detail.js');
 
 // [U13]: Smart Back Navigation
 assert.ok(
-  detailSrc.includes('if (window.history.length > 1) { window.history.back(); } else { Router.navigate(\'/history\'); }'),
+  detailSrc.includes("Router.back('/history')") && !detailSrc.includes('onclick='),
   'Back button should use smart history back navigation'
 );
 

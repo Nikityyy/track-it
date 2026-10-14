@@ -721,38 +721,74 @@ select option {
     font-size: 17px;
 }
 
+/* Open workout: the line that is still "live" on the scoreboard */
 .draft-banner {
-    margin-bottom: calc(var(--space-1) * 2);
+    display: flex;
+    flex-direction: column;
+    margin: calc(var(--space-1) * 1) 0 calc(var(--space-1) * 4);
+    padding: 18px 16px 16px;
     background: var(--surface);
-    box-shadow: inset 3px 0 0 var(--color-accent);
+    border-radius: var(--radius-lg);
 }
 
-.draft-banner-content {
+.draft-banner-head {
     display: flex;
-    align-items: center;
-    gap: calc(var(--space-1) * 1.5);
-    margin-bottom: calc(var(--space-1) * 1.5);
-}
-
-.draft-banner-icon {
-    color: var(--text-primary);
-    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
 }
 
 .draft-banner-title {
-    font-weight: 700;
-    font-size: 15px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.draft-banner-clock {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-accent-text);
+    white-space: nowrap;
+}
+
+.draft-banner-clock b {
+    font-size: 22px;
+    font-weight: 850;
+    font-stretch: var(--condensed);
+    font-variant-numeric: tabular-nums;
+    margin-left: 4px;
+}
+
+.draft-banner-name {
+    margin-top: 6px;
+    font-size: 28px;
+    font-weight: 850;
+    font-stretch: var(--condensed);
+    text-transform: uppercase;
+    line-height: 1;
+    overflow-wrap: anywhere;
 }
 
 .draft-banner-sub {
-    display: block;
-    font-size: 13px;
+    margin-top: 6px;
+    font-size: 15px;
     color: var(--text-muted);
 }
 
 .draft-banner-actions {
     display: flex;
     gap: var(--space-1);
+    margin-top: 16px;
+}
+
+.draft-banner-actions #resume-draft {
+    flex: 1;
+    min-height: 52px;
+    font-size: 17px;
+}
+
+.draft-banner-actions #discard-draft {
+    min-height: 52px;
 }
 
 /* ── Workout List ── */
@@ -857,17 +893,12 @@ select option {
     padding: 10px 12px;
 }
 
-/* Edit leads; copy actions pair up; share follows; delete sits apart at the end */
+/* Edit leads; copy and share pair up; delete sits apart at the end */
 .detail-actions #btn-edit-workout {
     order: -1;
     grid-column: 1 / -1;
     min-height: 52px;
     font-size: 16px;
-}
-
-.detail-actions #btn-share-workout {
-    order: 1;
-    grid-column: 1 / -1;
 }
 
 .detail-actions #btn-delete-workout {

@@ -131,7 +131,7 @@ async function renderWorkoutDetailPage(params) {
   app.innerHTML = `
     <div class="page page-detail">
       <div class="page-header">
-        <button type="button" class="btn-icon" id="btn-back-workout" aria-label="Zurück" onclick="if (window.history.length > 1) { window.history.back(); } else { Router.navigate('/history'); }">${icon('chevronLeft', 20)}</button>
+        <button type="button" class="btn-icon" id="btn-back-workout" aria-label="Zurück">${icon('chevronLeft', 20)}</button>
         <div>
           <h2 class="page-title">${escapeHtml(workout.name)}</h2>
           <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
@@ -148,11 +148,8 @@ async function renderWorkoutDetailPage(params) {
         <button class="btn btn-ghost" id="btn-edit-workout">
           ${icon('edit', 16)} Bearbeiten
         </button>
-        <button class="btn btn-ghost" id="btn-copy-md">
-          ${icon('copy', 16)} Kopieren (Markdown)
-        </button>
-        <button class="btn btn-ghost" id="btn-copy-compact">
-          ${icon('copy', 16)} Kompakt kopieren
+        <button class="btn btn-ghost" id="btn-copy-workout">
+          ${icon('copy', 16)} Kopieren
         </button>
         <button class="btn btn-ghost btn-danger-ghost" id="btn-delete-workout">
           ${icon('trash', 16)} Löschen
@@ -178,11 +175,7 @@ async function renderWorkoutDetailPage(params) {
   // Events
   document.getElementById('btn-back-workout')?.addEventListener('click', (e) => {
     e.preventDefault();
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      Router.navigate('/history');
-    }
+    Router.back('/history');
   });
 
   document.getElementById('btn-share-workout')?.addEventListener('click', () => {
@@ -194,14 +187,9 @@ async function renderWorkoutDetailPage(params) {
     Router.navigate(`/edit/${workout.workoutId}`);
   });
 
-  document.getElementById('btn-copy-md').addEventListener('click', () => {
+  document.getElementById('btn-copy-workout').addEventListener('click', () => {
     if (window.haptic) window.haptic.trigger('success');
-    copyMarkdownToClipboard(workout);
-  });
-
-  document.getElementById('btn-copy-compact').addEventListener('click', () => {
-    if (window.haptic) window.haptic.trigger('success');
-    copyCompactToClipboard(workout);
+    copyWorkoutToClipboard(workout);
   });
 
   document.getElementById('btn-delete-workout').addEventListener('click', () => {
@@ -215,8 +203,10 @@ async function renderWorkoutDetailPage(params) {
       onConfirm: async () => {
         if (window.haptic) window.haptic.trigger('success');
         await deleteWorkout(workout.workoutId);
+        const draft = await getDraft();
+        if (draft && draft.isEdit && draft.editId === workout.workoutId) await clearDraft();
         showToast('Workout gelöscht');
-        Router.navigate('/history');
+        Router.back('/history');
       }
     });
   });

@@ -24,20 +24,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.scrollTo(0, 0);
         renderCreateWorkoutPage({});
         setTimeout(updateActiveNav, 0);
-        return () => {
-            stopAutoDraft();
-            if (typeof pauseActiveRestTimer === 'function') pauseActiveRestTimer(false);
-        };
+        return leaveWorkoutEditor;
     });
 
     Router.register('/edit/:id', (params) => {
         window.scrollTo(0, 0);
         renderCreateWorkoutPage(params);
         setTimeout(updateActiveNav, 0);
-        return () => {
-            stopAutoDraft();
-            if (typeof pauseActiveRestTimer === 'function') pauseActiveRestTimer(false);
-        };
+        return leaveWorkoutEditor;
     });
 
     Router.register('/workout/:id', (params) => {
@@ -79,6 +73,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // Reopening the app with an unsaved workout goes straight back into it
+    const launchHash = window.location.hash;
+    if (launchHash === '' || launchHash === '#' || launchHash === '#/') {
+        try {
+            const draft = await getDraft();
+            const age = draft && draft.savedAt ? Date.now() - new Date(draft.savedAt).getTime() : Infinity;
+            if (draft && draft.workout && age < DRAFT_AUTO_OPEN_MAX_AGE_MS) {
+                history.replaceState(null, '', '#' + getDraftPath(draft));
+            }
+        } catch (e) { /* fall through to home */ }
+    }
 
     Router.init();
 

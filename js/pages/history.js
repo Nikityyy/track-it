@@ -35,7 +35,7 @@ async function renderHistoryPage() {
               <div class="workout-card-name">${escapeHtml(w.name)}</div>
               <div class="workout-card-chips">
                 <span class="chip">${icon('layers', 12)} ${exCount} ${exCount === 1 ? 'Übung' : 'Übungen'}</span>
-                <span class="chip">${icon('hash', 12)} ${setCount} Sätze</span>
+                <span class="chip">${icon('hash', 12)} ${setCount} ${setCount === 1 ? 'Satz' : 'Sätze'}</span>
                 ${wAvg ? `<span class="chip chip-rpe">RPE ${wAvg}</span>` : ''}
                 ${w.finisher && w.finisher.type ? `<span class="chip">${icon('zap', 12)} Finisher</span>` : ''}
               </div>
