@@ -21,7 +21,7 @@ function updateActiveNav() {
     const nav = link.dataset.nav;
     const isActive =
       (nav === 'home' && (hash === '/' || hash === '')) ||
-      (nav === 'history' && hash.startsWith('/history')) ||
+      (nav === 'history' && (hash.startsWith('/history') || hash.startsWith('/exercise/'))) ||
       (nav === 'settings' && hash === '/settings');
     link.classList.toggle('active', isActive);
   });

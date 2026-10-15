@@ -78,6 +78,18 @@ async function renderCreateWorkoutPage(params) {
     }
   }
 
+  // "Wiederholen": a past workout's structure, with empty values
+  const repeatFrom = !workout && !isEdit ? new URLSearchParams(window.location.hash.split('?')[1] || '').get('from') : null;
+  if (repeatFrom) {
+    const source = await getWorkout(repeatFrom);
+    if (source) {
+      workout = buildRepeatWorkout(source);
+      showToast('Übungen aus „' + (source.name || source.type) + '“ übernommen');
+    }
+    // A reload should not rebuild the template over unsaved changes
+    try { history.replaceState(history.state, '', '#/create'); } catch (e) { /* ignore */ }
+  }
+
   if (!workout) {
     workout = createEmptyWorkout(types.length > 0 ? types[0].name : '');
   }
@@ -99,10 +111,134 @@ async function renderCreateWorkoutPage(params) {
   window._hasUnsavedChanges = fromDraft;
 
   startAutoDraft();
+  acquireWakeLock();
+
+  // Exercise name suggestions come from everything logged so far
+  _exerciseIndex = null;
+  getAllWorkouts().then(all => {
+    if (token === _editorRenderToken) _exerciseIndex = buildExerciseIndex(all);
+  }).catch(() => {});
+}
+
+/* ── Exercise name suggestions ──
+ * A small list under the focused name field: likely exercises before you
+ * type, best matches while you type. Tapping one fills the name as you last
+ * wrote it (with its weight). */
+let _exerciseIndex = null;
+let _suggestFor = null;
+
+function nameSuggestTarget(el) {
+  return el && el.matches && el.matches('.exercise-name, .finisher-entry-name') ? el : null;
+}
+
+function showNameSuggestions(input) {
+  if (!_exerciseIndex || !input.isConnected) return hideNameSuggestions();
+  const others = Array.from(document.querySelectorAll('.exercise-name, .finisher-entry-name'))
+    .filter(el => el !== input).map(el => el.value).filter(Boolean);
+  const items = suggestExercises(_exerciseIndex, input.value, {
+    type: document.getElementById('workout-type')?.value || '',
+    exclude: others,
+    limit: 5
+  });
+  if (!items.length) return hideNameSuggestions();
+
+  const header = input.closest('.exercise-card-header, .finisher-entry-header');
+  let panel = document.getElementById('name-suggest');
+  if (!panel || panel.parentElement !== header) {
+    panel?.remove();
+    panel = document.createElement('div');
+    panel.id = 'name-suggest';
+    panel.className = 'name-suggest';
+    panel.setAttribute('role', 'listbox');
+    header.appendChild(panel);
+  }
+  _suggestFor = input;
+  const heading = input.value.trim() ? '' : '<div class="name-suggest-heading">Zuletzt trainiert</div>';
+  panel.innerHTML = heading + items.map((item, i) => `
+    <button type="button" class="name-suggest-item" role="option" data-index="${i}" data-value="${escapeHtml(item.latestName)}">
+      <span class="name-suggest-name">${highlightMatch(item.latestName, input.value)}</span>
+      <span class="name-suggest-meta">${item.count}×</span>
+    </button>`).join('');
+  requestAnimationFrame(() => panel.classList.add('is-open'));
+}
+
+function hideNameSuggestions() {
+  _suggestFor = null;
+  document.getElementById('name-suggest')?.remove();
+}
+
+function pickNameSuggestion(button) {
+  const input = _suggestFor;
+  if (!input) return;
+  input.value = button.dataset.value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  if (window.haptic) window.haptic.trigger(15);
+  hideNameSuggestions();
+  input.blur();
+}
+
+/* Keep the screen on while a workout is being logged (iOS 16.4+, Android).
+ * The system drops the lock whenever the app is hidden; it is re-acquired
+ * when the editor becomes visible again. */
+let _wakeLock = null;
+
+async function acquireWakeLock() {
+  if (typeof navigator === 'undefined' || !navigator.wakeLock || _wakeLock) return;
+  if (document.visibilityState !== 'visible' || !document.getElementById('workout-form')) return;
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+    // Left the editor while the request was pending
+    if (!document.getElementById('workout-form')) releaseWakeLock();
+  } catch (e) {
+    _wakeLock = null; // denied (e.g. low power mode): nothing to do
+  }
+}
+
+function releaseWakeLock() {
+  if (_wakeLock) {
+    _wakeLock.release().catch(() => {});
+    _wakeLock = null;
+  }
+}
+
+function buildRepeatWorkout(source) {
+  const emptySet = (set, i, mode) => ({
+    ...createEmptySet(i, mode),
+    label: set && set.label ? set.label : createEmptySet(i, mode).label,
+    skipped: false
+  });
+  const base = createEmptyWorkout(source.type || '');
+  const generated = /^.+ – \d{2}\.\d{2}\.\d{4}$/.test(source.name || '');
+  return {
+    ...base,
+    name: generated || !source.name ? base.name : source.name,
+    exercises: (source.exercises || []).length
+      ? source.exercises.map(ex => ({
+        exerciseId: uuid(),
+        name: ex.name || '',
+        mode: ex.mode === 'lr' ? 'lr' : 'normal',
+        sets: (ex.sets && ex.sets.length ? ex.sets : [null]).map((set, i) => emptySet(set, i, ex.mode))
+      }))
+      : base.exercises,
+    finisher: source.finisher && source.finisher.type ? {
+      type: source.finisher.type,
+      name: source.finisher.name || '',
+      entries: (source.finisher.entries || []).map(entry => ({
+        ...createEmptyFinisherEntry(),
+        name: entry.name || '',
+        mode: entry.mode === 'lr' ? 'lr' : 'normal',
+        skipped: false,
+        sets: (entry.sets || []).map((set, i) => emptySet(set, i, entry.mode))
+      }))
+    } : null,
+    notes: ''
+  };
 }
 
 function leaveWorkoutEditor() {
   _editorRenderToken++;
+  releaseWakeLock();
   if (typeof suspendActiveRestTimer === 'function') suspendActiveRestTimer();
   stopAutoDraft();
 }
@@ -160,7 +296,9 @@ function stopAutoDraft(shouldSave = true) {
 // Closing or backgrounding the app (iOS gives no unload event for PWAs)
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden' && document.getElementById('workout-form')) saveCurrentDraft();
+    if (!document.getElementById('workout-form')) return;
+    if (document.visibilityState === 'hidden') saveCurrentDraft();
+    else acquireWakeLock();
   });
   window.addEventListener('pagehide', () => {
     if (document.getElementById('workout-form')) saveCurrentDraft();
@@ -274,6 +412,7 @@ function renderExerciseCard(exercise, index, totalCount = 1) {
       <div class="exercise-mode-toggle">
         <button type="button" class="btn btn-sm ${exercise.mode === 'normal' ? 'btn-primary' : 'btn-ghost'} mode-btn" data-mode="normal">Normal</button>
         <button type="button" class="btn btn-sm ${exercise.mode === 'lr' ? 'btn-primary' : 'btn-ghost'} mode-btn" data-mode="lr">Links/Rechts</button>
+        ${renderLrSwapButton(exercise.sets)}
       </div>
       ${renderSetsHeader()}
       <div class="sets-container">${exercise.sets.map((set, si) => renderSetRow(set, si, exercise.sets.length <= 1)).join('')}</div>
@@ -325,7 +464,7 @@ function renderNumberStepper(target, inputClass, value, min, max, disabled, labe
   return `
     <div class="stepper stepper-sm stepper-minimal stepper-${target}">
       <button type="button" class="stepper__btn stepper-dec" data-target="${target}" data-step="${step}" aria-label="Weniger"${disabled ? ' disabled' : ''}>−</button>
-      <input type="number" class="stepper__input ${inputClass}" value="${value}" placeholder="–" min="${min}"${maxAttr} step="${step}" aria-label="${label}"${disabled ? ' disabled' : ''}>
+      <input type="number" class="stepper__input ${inputClass}" value="${value}"${target === 'rpe' ? ' placeholder="RPE"' : ''} min="${min}"${maxAttr} step="${step}" aria-label="${label}"${disabled ? ' disabled' : ''}>
       <button type="button" class="stepper__btn stepper-inc" data-target="${target}" data-step="${step}" aria-label="Mehr"${disabled ? ' disabled' : ''}>+</button>
     </div>
   `;
@@ -366,6 +505,7 @@ function renderFinisherEntry(entry, index, type) {
         <div class="exercise-mode-toggle">
           <button type="button" class="btn btn-sm ${entry.mode === 'lr' ? 'btn-ghost' : 'btn-primary'} mode-btn" data-mode="normal">Normal</button>
           <button type="button" class="btn btn-sm ${entry.mode === 'lr' ? 'btn-primary' : 'btn-ghost'} mode-btn" data-mode="lr">Links/Rechts</button>
+          ${renderLrSwapButton(entry.sets)}
         </div>
         ${renderSetsHeader()}
         <div class="finisher-sets-container">${sets.map((s, si) => renderSetRow(s, si, sets.length <= 1)).join('')}</div>
@@ -414,7 +554,36 @@ function bindFormEvents(workout) {
     scheduleHistoryRecord();
   });
 
-  form.addEventListener('input', () => { scheduleHistoryRecord(); scheduleDraftSave(); });
+  form.addEventListener('input', (e) => {
+    scheduleHistoryRecord();
+    scheduleDraftSave();
+    if (nameSuggestTarget(e.target) && e.isTrusted !== false && document.activeElement === e.target) showNameSuggestions(e.target);
+  });
+  form.addEventListener('focusin', (e) => {
+    if (nameSuggestTarget(e.target)) showNameSuggestions(e.target);
+  });
+  form.addEventListener('focusout', (e) => {
+    if (nameSuggestTarget(e.target)) setTimeout(() => { if (document.activeElement !== _suggestFor) hideNameSuggestions(); }, 300);
+  });
+  form.addEventListener('keydown', (e) => {
+    if (!_suggestFor || e.target !== _suggestFor) return;
+    if (e.key === 'Escape') hideNameSuggestions();
+    if (e.key === 'Enter') {
+      const first = document.querySelector('#name-suggest .name-suggest-item');
+      if (first && _suggestFor.value.trim()) { e.preventDefault(); pickNameSuggestion(first); }
+    }
+  });
+  // Pick on touch-down: instant, and the field keeps focus until we choose
+  form.addEventListener('pointerdown', (e) => {
+    const item = e.target.closest && e.target.closest('.name-suggest-item');
+    if (!item) return;
+    e.preventDefault();
+    pickNameSuggestion(item);
+  });
+  form.addEventListener('click', (e) => {
+    const item = e.target.closest && e.target.closest('.name-suggest-item');
+    if (item && _suggestFor) pickNameSuggestion(item);
+  }, true);
   form.addEventListener('change', (e) => {
     clampNumberInput(e.target);
     scheduleHistoryRecord();
@@ -522,6 +691,12 @@ function bindFormEvents(workout) {
       return;
     }
 
+    if (e.target.closest('.lr-swap')) {
+      swapLrOrder(card);
+      recordFormHistory();
+      return;
+    }
+
     if (e.target.closest('.add-set')) {
       addSetToCard(card);
       updateSetDeleteStates(card);
@@ -570,6 +745,8 @@ function bindFormEvents(workout) {
   if (document.querySelector('.finisher-block')) bindFinisherEvents();
 
   document.getElementById('btn-cancel').addEventListener('click', async () => {
+    // A change from the last moment may still be waiting for its debounced save
+    saveCurrentDraft();
     const draft = await getDraft();
     const hasActiveDraftOrChanges = window._hasUnsavedChanges || (draft && draft.workout);
 
@@ -672,6 +849,16 @@ function bindFinisherEvents() {
           showToast('Mindestens ein Eintrag erforderlich');
         }
       });
+      return;
+    }
+
+    const swapBtn = e.target.closest('.lr-swap');
+    if (swapBtn) {
+      const entry = swapBtn.closest('.finisher-entry');
+      if (entry) {
+        swapLrOrder(entry);
+        recordFormHistory();
+      }
       return;
     }
 
@@ -838,10 +1025,12 @@ function addSetToCard(card) {
   const rows = setsContainer.querySelectorAll('.set-row');
   if (mode === 'lr') {
     const pairNum = Math.floor(count / 2) + 1;
-    const leftRpe = count >= 2 ? readRpeInput(rows[count - 2]) : null;
-    const rightRpe = count >= 1 ? readRpeInput(rows[count - 1]) : null;
-    setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${pairNum} (links)`, reps: 0, rpe: leftRpe, breakSeconds: 0, note: '', skipped: false }, count));
-    setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${pairNum} (rechts)`, reps: 0, rpe: rightRpe, breakSeconds: 0, note: '', skipped: false }, count + 1));
+    // New pairs follow this exercise's own order; RPE carries over per side
+    const [firstSide, secondSide] = getContainerSides(setsContainer);
+    const firstRpe = count >= 2 ? readRpeInput(rows[count - 2]) : null;
+    const secondRpe = count >= 1 ? readRpeInput(rows[count - 1]) : null;
+    setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${pairNum} (${firstSide})`, reps: 0, rpe: firstRpe, breakSeconds: 0, note: '', skipped: false }, count));
+    setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${pairNum} (${secondSide})`, reps: 0, rpe: secondRpe, breakSeconds: 0, note: '', skipped: false }, count + 1));
   } else {
     const newSet = createEmptySet(count, 'normal');
     newSet.rpe = count >= 1 ? readRpeInput(rows[count - 1]) : null;
@@ -888,9 +1077,10 @@ function rebuildSetsForMode(card, newMode) {
 
   setsContainer.innerHTML = '';
   if (newMode === 'lr') {
+    const [firstSide, secondSide] = lrSides();
     values.forEach((val, i) => {
-      setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${i + 1} (links)`, ...val }, i * 2));
-      setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${i + 1} (rechts)`, ...val }, i * 2 + 1));
+      setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${i + 1} (${firstSide})`, ...val }, i * 2));
+      setsContainer.insertAdjacentHTML('beforeend', renderSetRow({ setId: uuid(), label: `Satz ${i + 1} (${secondSide})`, ...val }, i * 2 + 1));
     });
   } else {
     const count = Math.ceil(values.length / 2);
@@ -900,16 +1090,63 @@ function rebuildSetsForMode(card, newMode) {
     }
   }
   updateSetDeleteStates(card);
+  updateLrSwapButton(card);
+}
+
+/* Order of an L/R exercise = the side of its first set; the setting decides
+ * only for exercises that have no sides yet. */
+function getContainerSides(container) {
+  const first = container.querySelector('.set-row .set-label');
+  const label = first ? first.dataset.rawLabel || '' : '';
+  if (label.includes('rechts')) return ['rechts', 'links'];
+  if (label.includes('links')) return ['links', 'rechts'];
+  return lrSides();
+}
+
+function renderLrSwapButton(sets) {
+  const firstLabel = sets && sets[0] ? String(sets[0].label || '') : '';
+  const rightFirst = firstLabel.includes('rechts') || (!firstLabel.includes('links') && getLrOrder() === 'right');
+  return `<button type="button" class="btn btn-sm btn-ghost lr-swap" aria-label="Seitenreihenfolge tauschen" title="Seitenreihenfolge tauschen">${rightFirst ? 'R → L' : 'L → R'} <span aria-hidden="true">⇄</span></button>`;
+}
+
+function updateLrSwapButton(card) {
+  const btn = card.querySelector('.lr-swap');
+  if (!btn) return;
+  const [firstSide] = getContainerSides(getSetsContainer(card));
+  btn.innerHTML = `${firstSide === 'rechts' ? 'R → L' : 'L → R'} <span aria-hidden="true">⇄</span>`;
+}
+
+/* Swap which side comes first in every pair. Rows move, so each set keeps
+ * its values and its side; only the order changes. */
+function swapLrOrder(card) {
+  const container = getSetsContainer(card);
+  const rows = Array.from(container.querySelectorAll('.set-row'));
+  for (let i = 0; i + 1 < rows.length; i += 2) {
+    container.insertBefore(rows[i + 1], rows[i]);
+  }
+  container.querySelectorAll('.set-row').forEach((row, i) => {
+    const labelEl = row.querySelector('.set-label');
+    const own = (labelEl.dataset.rawLabel || '').includes('rechts') ? 'rechts' : 'links';
+    writeSetLabel(row, `Satz ${Math.floor(i / 2) + 1} (${own})`, i);
+  });
+  if (window.haptic) window.haptic.trigger(20);
+  updateLrSwapButton(card);
+}
+
+function writeSetLabel(row, label, i) {
+  const labelEl = row.querySelector('.set-label');
+  labelEl.dataset.rawLabel = label;
+  row.dataset.index = i;
+  const sideStr = label.includes('links') ? 'L' : label.includes('rechts') ? 'R' : '';
+  const numStr = label.match(/\d+/)?.[0] || (i + 1);
+  labelEl.innerHTML = `<div class="set-badge">${numStr}${sideStr ? `<div class="side">${sideStr}</div>` : ''}</div>`;
 }
 
 function rebuildSetLabelsInDOM(container, mode) {
+  const sides = mode === 'lr' ? getContainerSides(container) : null;
   container.querySelectorAll('.set-row').forEach((row, i) => {
-    const label = mode === 'lr' ? `Satz ${Math.floor(i / 2) + 1} (${i % 2 === 0 ? 'links' : 'rechts'})` : `Satz ${i + 1}`;
-    const labelEl = row.querySelector('.set-label');
-    labelEl.dataset.rawLabel = label;
-    const sideStr = label.includes('links') ? 'L' : label.includes('rechts') ? 'R' : '';
-    const numStr = label.match(/\d+/)?.[0] || (i + 1);
-    labelEl.innerHTML = `<div class="set-badge">${numStr}${sideStr ? `<div class="side">${sideStr}</div>` : ''}</div>`;
+    const label = mode === 'lr' ? `Satz ${Math.floor(i / 2) + 1} (${sides[i % 2]})` : `Satz ${i + 1}`;
+    writeSetLabel(row, label, i);
   });
 }
 

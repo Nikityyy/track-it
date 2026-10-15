@@ -52,7 +52,9 @@ async function renderWorkoutDetailPage(params) {
   const exercisesHtml = workout.exercises.map(ex => `
     <div class="card detail-exercise">
       <div class="detail-exercise-header">
-        <h3 class="detail-exercise-name">${escapeHtml(ex.name || 'Unbenannte Übung')}</h3>
+        <h3 class="detail-exercise-name">${ex.name && exerciseKey(ex.name)
+          ? `<a href="#/exercise/${encodeURIComponent(exerciseBaseName(ex.name))}" class="exercise-link">${escapeHtml(ex.name)}</a>`
+          : escapeHtml(ex.name || 'Unbenannte Übung')}</h3>
         <span class="badge">${ex.mode === 'lr' ? 'Links/Rechts' : 'Normal'}</span>
       </div>
       <div class="detail-sets">
@@ -148,6 +150,9 @@ async function renderWorkoutDetailPage(params) {
         <button class="btn btn-ghost" id="btn-edit-workout">
           ${icon('edit', 16)} Bearbeiten
         </button>
+        <button class="btn btn-ghost" id="btn-repeat-workout">
+          ${icon('repeat', 16)} Wiederholen
+        </button>
         <button class="btn btn-ghost" id="btn-copy-workout">
           ${icon('copy', 16)} Kopieren
         </button>
@@ -185,6 +190,10 @@ async function renderWorkoutDetailPage(params) {
 
   document.getElementById('btn-edit-workout').addEventListener('click', () => {
     Router.navigate(`/edit/${workout.workoutId}`);
+  });
+
+  document.getElementById('btn-repeat-workout').addEventListener('click', () => {
+    Router.navigate(`/create?from=${encodeURIComponent(workout.workoutId)}`);
   });
 
   document.getElementById('btn-copy-workout').addEventListener('click', () => {

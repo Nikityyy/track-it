@@ -111,10 +111,38 @@ function generateWorkoutName(type) {
     return `${type} – ${formatDateDE(new Date().toISOString())}`;
 }
 
+/* Left/right order for L/R exercises. Which side a set belongs to is always
+ * read from its label ("Satz 1 (links)"), never from its position, so old
+ * workouts keep their order whatever this setting says. */
+const LR_ORDER_KEY = 'trackit-lr-order';
+
+function getLrOrder() {
+    try {
+        return localStorage.getItem(LR_ORDER_KEY) === 'right' ? 'right' : 'left';
+    } catch (e) {
+        return 'left';
+    }
+}
+
+function setLrOrder(order) {
+    try { localStorage.setItem(LR_ORDER_KEY, order === 'right' ? 'right' : 'left'); } catch (e) { /* ignore */ }
+}
+
+function lrSides(order) {
+    return (order || getLrOrder()) === 'right' ? ['rechts', 'links'] : ['links', 'rechts'];
+}
+
+function setSide(set) {
+    const label = String(set && set.label || '');
+    if (label.includes('rechts')) return 'R';
+    if (label.includes('links')) return 'L';
+    return null;
+}
+
 function createEmptySet(index, mode, pairIndex) {
     if (mode === 'lr') {
         const sn = pairIndex !== undefined ? pairIndex + 1 : Math.floor(index / 2) + 1;
-        const side = index % 2 === 0 ? 'links' : 'rechts';
+        const side = lrSides()[index % 2];
         return {
             setId: uuid(),
             label: `Satz ${sn} (${side})`,
@@ -172,7 +200,7 @@ function rebuildSetLabels(exercise) {
     exercise.sets.forEach((set, i) => {
         if (exercise.mode === 'lr') {
             const pairNum = Math.floor(i / 2) + 1;
-            const side = i % 2 === 0 ? 'links' : 'rechts';
+            const side = lrSides()[i % 2];
             set.label = `Satz ${pairNum} (${side})`;
         } else {
             set.label = `Satz ${i + 1}`;

@@ -55,6 +55,8 @@
     --color-warning: #e8a23a;
     --color-danger: #ff6a5c;
     --color-info: #7ea6f0;
+    /* Chart series: the accent one step deeper, validated against all surfaces */
+    --chart-accent: #f2600f;
 
     /* Spacing scale */
     --space-2xs: 2px;

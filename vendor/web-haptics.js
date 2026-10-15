@@ -136,8 +136,10 @@ class WebHaptics {
       }
     }
 
-    // 2. iOS Safari / WebKit Taptic Engine via switch element
-    this._triggerIOSPattern(pattern);
+    // 2. iOS Safari / WebKit Taptic Engine via switch element. On iOS 18+
+    //    ios-vibrator-pro-max provides navigator.vibrate, so only fall back
+    //    to the switch here when no vibrate call went through (iOS 17.4–17.x).
+    if (!triggered) this._triggerIOSPattern(pattern);
 
     return triggered || true;
   }

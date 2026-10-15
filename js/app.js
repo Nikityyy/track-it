@@ -13,6 +13,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     <main id="app-content" class="app-content"></main>
   `;
 
+    // In-app links navigate through the router instead of the browser default.
+    // ios-vibrator-pro-max re-dispatches taps as synthetic clicks and cancels
+    // their default action, which would otherwise swallow taps on <a href="#/…">.
+    document.addEventListener('click', (e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        const link = e.target.closest && e.target.closest('a[href^="#/"]');
+        if (!link) return;
+        e.preventDefault();
+        Router.navigate(link.getAttribute('href').slice(1));
+    });
+
+    // Hairline under the header once content scrolls beneath it
+    const header = document.querySelector('.app-header');
+    const syncHeader = () => header && header.classList.toggle('is-scrolled', window.scrollY > 4);
+    window.addEventListener('scroll', syncHeader, { passive: true });
+    window.addEventListener('hashchange', () => requestAnimationFrame(syncHeader));
+    syncHeader();
+
     // Routes
     Router.register('/', () => {
         window.scrollTo(0, 0);
@@ -43,6 +61,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     Router.register('/history', () => {
         window.scrollTo(0, 0);
         renderHistoryPage();
+        setTimeout(updateActiveNav, 0);
+    });
+
+    Router.register('/exercise/:name', (params) => {
+        window.scrollTo(0, 0);
+        renderExercisePage(params);
         setTimeout(updateActiveNav, 0);
     });
 

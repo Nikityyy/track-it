@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trackit-cache-v10';
+const CACHE_NAME = 'trackit-cache-v11';
 
 const PRECACHE_URLS = [
     './',
@@ -8,10 +8,12 @@ const PRECACHE_URLS = [
     './fonts/archivo-latin-ext.woff2',
     './css/styles.css',
     './vendor/lucide.min.js',
+    './vendor/ios-vibrator-pro-max.js',
     './vendor/web-haptics.js',
     './js/db.js',
     './js/utils.js',
     './js/copy.js',
+    './js/exercises.js',
     './js/form-history.js',
     './js/rest-timer.js',
     './js/app.js',
@@ -24,6 +26,7 @@ const PRECACHE_URLS = [
     './js/pages/workout-detail.js',
     './js/pages/create-workout.js',
     './js/pages/settings.js',
+    './js/pages/exercise.js',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png'

@@ -21,6 +21,12 @@
     <link rel="stylesheet" href="./css/styles.css">
 
     <script src="./vendor/lucide.min.js"></script>
+    <script>
+        // iOS vibration via ios-vibrator-pro-max; can be switched off in settings
+        if (localStorage.getItem('trackit-ios-haptics') !== 'off') {
+            document.write('<script src="./vendor/ios-vibrator-pro-max.js"><\/script>');
+        }
+    </script>
     <script src="./vendor/web-haptics.js"></script>
     <script>
         const savedTheme = localStorage.getItem('trackit-theme') || 'dark';
@@ -33,6 +39,7 @@
     <script src="./js/utils.js"></script>
     <script src="./js/db.js"></script>
     <script src="./js/copy.js"></script>
+    <script src="./js/exercises.js"></script>
     <script src="./js/form-history.js"></script>
     <script src="./js/rest-timer.js"></script>
 
@@ -46,6 +53,7 @@
     <script src="./js/pages/workout-detail.js"></script>
     <script src="./js/pages/create-workout.js"></script>
     <script src="./js/pages/settings.js"></script>
+    <script src="./js/pages/exercise.js"></script>
 
     <script src="./js/app.js"></script>
 

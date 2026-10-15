@@ -2,6 +2,8 @@ async function renderSettingsPage() {
   const app = document.getElementById('app-content');
   const types = await getWorkoutTypes();
   const lastImportBackup = await getLastImportBackup();
+  const typeUsage = {};
+  (await getAllWorkouts()).forEach(w => { typeUsage[w.type] = (typeUsage[w.type] || 0) + 1; });
   const currentTheme = localStorage.getItem('trackit-theme') || 'dark';
 
   app.innerHTML = `
@@ -24,27 +26,36 @@ async function renderSettingsPage() {
         </div>
       </section>
 
+      <section class="settings-section">
+        <h3 class="section-title">Training</h3>
+        <div class="settings-row">
+          <div class="settings-info">
+            <span class="settings-label">Links/Rechts-Reihenfolge</span>
+            <span class="text-muted text-small">Welche Seite bei neuen Links/Rechts-Sätzen zuerst kommt. Pro Übung umstellbar mit ⇄.</span>
+          </div>
+          <select id="lr-order-select" class="select" style="width: auto; min-width: 170px;" aria-label="Links/Rechts-Reihenfolge">
+            <option value="left" ${getLrOrder() === 'left' ? 'selected' : ''}>Links zuerst</option>
+            <option value="right" ${getLrOrder() === 'right' ? 'selected' : ''}>Rechts zuerst</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <div class="settings-info">
+            <span class="settings-label">Vibration auf dem iPhone</span>
+            <span class="text-muted text-small">Nutzt einen iOS-Trick für spürbares Feedback. Wenn Tippen sich unzuverlässig anfühlt, hier ausschalten.</span>
+          </div>
+          <label class="toggle-label">
+            <input type="checkbox" id="ios-haptics-toggle" ${localStorage.getItem('trackit-ios-haptics') === 'off' ? '' : 'checked'}>
+          </label>
+        </div>
+      </section>
+
       <!-- Workout Types -->
       <section class="settings-section">
         <h3 class="section-title">Workout-Typen</h3>
-        <div id="type-list" class="type-list">
-          ${types.length > 0 ? types.map((t, index) => `
-            <div class="type-item" data-id="${t.id}">
-              <div style="display: flex; flex-direction: column;">
-                <button class="btn-icon type-move-up" data-id="${t.id}" style="padding: 2px; height: auto;" ${index === 0 ? 'disabled' : ''}>${icon('chevronUp', 16)}</button>
-                <button class="btn-icon type-move-down" data-id="${t.id}" style="padding: 2px; height: auto;" ${index === types.length - 1 ? 'disabled' : ''}>${icon('chevronDown', 16)}</button>
-              </div>
-              <input type="text" class="input type-input" value="${escapeHtml(t.name)}" data-id="${t.id}" data-original-name="${escapeHtml(t.name)}" aria-label="Typ-Name">
-              <button class="btn-icon btn-danger-icon type-delete" data-id="${t.id}" aria-label="Typ löschen">${icon('trash', 16)}</button>
-            </div>
-          `).join('') : `
-            <div class="empty-state" style="padding: 24px 0; border: none; background: transparent;">
-              <div class="empty-state-icon" style="margin-bottom: 8px;">${icon('settings', 32)}</div>
-              <p class="empty-state-text" style="font-size: 14px;">Keine Workout-Typen vorhanden.</p>
-              <p class="empty-state-sub" style="font-size: 12px;">Füge einen Typ hinzu, um deine Workouts zu organisieren.</p>
-            </div>
-          `}
-        </div>
+        <p class="text-muted text-small type-hint">Zum Sortieren am Griff ziehen. Tippen auf den Namen zum Umbenennen.</p>
+        <ul id="type-list" class="type-list">
+          ${types.map(t => renderTypeItem(t, typeUsage[t.name] || 0)).join('')}
+        </ul>
         <button class="btn btn-ghost btn-sm" id="add-type">${icon('plus', 14)} Typ hinzufügen</button>
       </section>
 
@@ -97,96 +108,119 @@ async function renderSettingsPage() {
     showToast('Design aktualisiert');
   });
 
-  // ── Type editing (U4: Safe workout type rename) ──
+  document.getElementById('lr-order-select')?.addEventListener('change', (e) => {
+    setLrOrder(e.target.value);
+    if (window.haptic) window.haptic.trigger(20);
+    showToast(e.target.value === 'right' ? 'Rechts zuerst' : 'Links zuerst');
+  });
+
+  document.getElementById('ios-haptics-toggle')?.addEventListener('change', (e) => {
+    localStorage.setItem('trackit-ios-haptics', e.target.checked ? 'on' : 'off');
+    showToast(e.target.checked ? 'iPhone-Vibration an' : 'iPhone-Vibration aus');
+    // The library wraps the page on load, so switching needs a fresh start
+    setTimeout(() => window.location.reload(), 700);
+  });
+
+  // ── Workout types: rename, add, delete, drag to reorder ──
   const typeList = document.getElementById('type-list');
 
-  async function handleNameChange(e) {
-    if (e.target.classList.contains('type-input')) {
-      const id = e.target.dataset.id;
-      const name = e.target.value.trim();
-      const type = types.find(t => t.id === id);
-      if (!type) return;
+  async function handleNameChange(input) {
+    const item = input.closest('.type-item');
+    const id = item.dataset.id;
+    const name = input.value.trim();
+    let type = types.find(t => t.id === id);
+    const oldName = input.dataset.originalName || '';
 
-      const oldName = e.target.dataset.originalName || type.name;
-
-      if (!name) {
-        e.target.value = oldName;
-        return;
-      }
-
-      if (oldName !== name) {
-        type.name = name;
-        e.target.dataset.originalName = name;
-        await saveWorkoutType(type);
-
-        if (oldName) {
-          showModal({
-            title: 'Typ umbenennen',
-            bodyText: 'Möchtest du den Namen für alle bestehenden Workouts aktualisieren oder nur für zukünftige Workouts?',
-            confirmText: 'Alle aktualisieren',
-            cancelText: 'Nur zukünftige',
-            onConfirm: async () => {
-              const allWorkouts = await getAllWorkouts();
-              let updatedCount = 0;
-              for (const w of allWorkouts) {
-                if (w.type === oldName) {
-                  w.type = name;
-                  await saveWorkout(w);
-                  updatedCount++;
-                }
-              }
-              if (window.haptic) window.haptic.trigger('success');
-              showToast(updatedCount > 0 ? `${updatedCount} bestehende Workouts aktualisiert` : 'Typ umbenannt');
-            },
-            onCancel: () => {
-              showToast('Typ für zukünftige Workouts umbenannt');
-            }
-          });
-        } else {
-          showToast('Typ gespeichert');
-        }
-      }
+    if (!name) {
+      if (!type) item.remove(); // a new row left empty is simply dropped
+      else input.value = oldName;
+      return;
     }
-  }
+    if (types.some(t => t.id !== id && t.name.trim().toLowerCase() === name.toLowerCase())) {
+      showToast(`„${name}“ gibt es schon`);
+      if (!type) item.remove();
+      else input.value = oldName;
+      return;
+    }
+    if (oldName === name && type) return;
 
-  typeList.addEventListener('change', handleNameChange);
-
-  // Move type up/down
-  typeList.addEventListener('click', async (e) => {
-    const btnUp = e.target.closest('.type-move-up');
-    const btnDown = e.target.closest('.type-move-down');
-    
-    if (btnUp || btnDown) {
+    if (!type) {
+      type = { id, name, order: types.length + 1 };
+      types.push(type);
+      input.dataset.originalName = name;
+      await saveWorkoutType(type);
+      item.classList.remove('is-new');
       if (window.haptic) window.haptic.trigger(20);
-      const id = (btnUp || btnDown).dataset.id;
-      const index = types.findIndex(t => t.id === id);
-      
-      if (btnUp && index > 0) {
-        const tempOrder = types[index].order;
-        types[index].order = types[index - 1].order;
-        types[index - 1].order = tempOrder;
-        await saveWorkoutType(types[index]);
-        await saveWorkoutType(types[index - 1]);
-        renderSettingsPage();
-      } else if (btnDown && index < types.length - 1) {
-        const tempOrder = types[index].order;
-        types[index].order = types[index + 1].order;
-        types[index + 1].order = tempOrder;
-        await saveWorkoutType(types[index]);
-        await saveWorkoutType(types[index + 1]);
-        renderSettingsPage();
-      }
+      showToast('Typ hinzugefügt');
       return;
     }
 
+    type.name = name;
+    input.dataset.originalName = name;
+    await saveWorkoutType(type);
+
+    if (oldName && (typeUsage[oldName] || 0) > 0) {
+      showModal({
+        title: 'Typ umbenennen',
+        bodyText: 'Möchtest du den Namen für alle bestehenden Workouts aktualisieren oder nur für zukünftige Workouts?',
+        confirmText: 'Alle aktualisieren',
+        cancelText: 'Nur zukünftige',
+        onConfirm: async () => {
+          const allWorkouts = await getAllWorkouts();
+          let updatedCount = 0;
+          for (const w of allWorkouts) {
+            if (w.type === oldName) {
+              w.type = name;
+              await saveWorkout(w);
+              updatedCount++;
+            }
+          }
+          typeUsage[name] = (typeUsage[name] || 0) + updatedCount;
+          delete typeUsage[oldName];
+          item.querySelector('.type-count').textContent = typeUsage[name] || '';
+          if (window.haptic) window.haptic.trigger('success');
+          showToast(updatedCount > 0 ? `${updatedCount} bestehende Workouts aktualisiert` : 'Typ umbenannt');
+        },
+        onCancel: () => {
+          item.querySelector('.type-count').textContent = '';
+          showToast('Typ für zukünftige Workouts umbenannt');
+        }
+      });
+    } else {
+      showToast('Typ umbenannt');
+    }
+  }
+
+  typeList.addEventListener('change', (e) => {
+    if (e.target.classList.contains('type-input')) handleNameChange(e.target);
+  });
+  typeList.addEventListener('keydown', (e) => {
+    if (e.target.classList.contains('type-input') && e.key === 'Enter') {
+      e.preventDefault();
+      e.target.blur();
+    }
+  });
+  // A new row that loses focus while still empty disappears
+  typeList.addEventListener('focusout', (e) => {
+    const item = e.target.closest && e.target.closest('.type-item.is-new');
+    if (item && e.target.classList.contains('type-input') && !e.target.value.trim()) item.remove();
+  });
+
+  typeList.addEventListener('click', (e) => {
     const btn = e.target.closest('.type-delete');
     if (!btn) return;
-    const id = btn.dataset.id;
+    const item = btn.closest('.type-item');
+    const id = item.dataset.id;
+    const type = types.find(t => t.id === id);
+    if (!type) { item.remove(); return; }
+    const used = typeUsage[type.name] || 0;
     if (window.haptic) window.haptic.trigger('error');
-    
+
     showModal({
-      title: 'Typ löschen',
-      bodyText: 'Möchtest du diesen Workout-Typ wirklich löschen? Vorhandene Workouts behalten diesen Typ in der Historie, er steht aber nicht mehr zur Auswahl.',
+      title: `„${type.name}“ löschen?`,
+      bodyText: used > 0
+        ? `${used} ${used === 1 ? 'Workout behält' : 'Workouts behalten'} diesen Typ im Verlauf. Für neue Workouts steht er nicht mehr zur Auswahl.`
+        : 'Der Typ steht danach nicht mehr zur Auswahl.',
       confirmText: 'Löschen',
       cancelText: 'Abbrechen',
       danger: true,
@@ -195,21 +229,36 @@ async function renderSettingsPage() {
         await deleteWorkoutType(id);
         const idx = types.findIndex(t => t.id === id);
         if (idx !== -1) types.splice(idx, 1);
-        btn.closest('.type-item').remove();
+        item.remove();
+        await persistTypeOrder();
         showToast('Typ gelöscht');
       }
     });
   });
 
-  // Add type
-  document.getElementById('add-type').addEventListener('click', async () => {
-    if (window.haptic) window.haptic.trigger(40);
-    const maxOrder = types.reduce((max, t) => Math.max(max, t.order || 0), 0);
-    const newType = { id: uuid(), name: '', order: maxOrder + 1 };
-    await saveWorkoutType(newType);
-    types.push(newType);
-    renderSettingsPage();
+  document.getElementById('add-type').addEventListener('click', () => {
+    if (window.haptic) window.haptic.trigger(20);
+    const pending = typeList.querySelector('.type-item.is-new');
+    if (pending) { pending.querySelector('.type-input').focus(); return; }
+    typeList.insertAdjacentHTML('beforeend', renderTypeItem({ id: uuid(), name: '' }, 0, true));
+    typeList.lastElementChild.querySelector('.type-input').focus();
   });
+
+  // Order = position in the list, written as 1..n so equal or missing
+  // order values (e.g. after an import) can never block a move
+  async function persistTypeOrder() {
+    const ids = Array.from(typeList.querySelectorAll('.type-item:not(.is-new)')).map(el => el.dataset.id);
+    for (let i = 0; i < ids.length; i++) {
+      const type = types.find(t => t.id === ids[i]);
+      if (type && type.order !== i + 1) {
+        type.order = i + 1;
+        await saveWorkoutType(type);
+      }
+    }
+    types.sort((a, b) => a.order - b.order);
+  }
+
+  enableTypeDragging(typeList, persistTypeOrder);
 
   // ── JSON Export ──
   document.getElementById('btn-export').addEventListener('click', async () => {
@@ -434,4 +483,99 @@ function downloadCsv(csvContent, filename) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, 100);
+}
+
+
+function renderTypeItem(type, usage, isNew = false) {
+  return `
+    <li class="type-item${isNew ? ' is-new' : ''}" data-id="${escapeHtml(type.id)}">
+      <span class="type-handle" tabindex="0" aria-label="Verschieben: Pfeiltasten oder ziehen" title="Ziehen zum Sortieren">${icon('gripVertical', 18)}</span>
+      <input type="text" class="input type-input" value="${escapeHtml(type.name)}" data-original-name="${escapeHtml(type.name)}" placeholder="Name, z. B. Oberkörper" aria-label="Typ-Name" autocomplete="off" enterkeyhint="done">
+      <span class="type-count" title="Workouts mit diesem Typ">${usage || ''}</span>
+      <button type="button" class="btn-icon btn-danger-icon type-delete" aria-label="Typ löschen">${icon('trash', 16)}</button>
+    </li>`;
+}
+
+/* Drag a row by its handle; the others slide out of the way. Rows only move
+ * in the DOM on release, so a cancelled drag leaves everything as it was.
+ * The handle is deliberately not a <button>: ios-vibrator-pro-max covers
+ * buttons with tap overlays, which would swallow the drag. */
+function enableTypeDragging(list, onReorder) {
+  let drag = null;
+
+  const rows = () => Array.from(list.querySelectorAll('.type-item'));
+
+  list.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.type-handle');
+    if (!handle || drag) return;
+    const item = handle.closest('.type-item');
+    if (item.classList.contains('is-new')) return;
+    e.preventDefault();
+    const all = rows();
+    const from = all.indexOf(item);
+    const rects = all.map(r => r.getBoundingClientRect());
+    drag = { item, handle, all, from, to: from, startY: e.clientY, rects, pointerId: e.pointerId };
+    handle.setPointerCapture(e.pointerId);
+    item.classList.add('is-dragging');
+    list.classList.add('is-sorting');
+    if (window.haptic) window.haptic.trigger(20);
+  });
+
+  list.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const { item, all, from, rects } = drag;
+    const minDy = rects[0].top - rects[from].top;
+    const maxDy = rects[rects.length - 1].bottom - rects[from].bottom;
+    const dy = Math.max(minDy, Math.min(maxDy, e.clientY - drag.startY));
+    item.style.transform = `translateY(${dy}px)`;
+
+    // Which slot is the dragged row's centre over?
+    const centre = rects[from].top + rects[from].height / 2 + dy;
+    let to = from;
+    rects.forEach((r, i) => { if (centre > r.top && centre < r.bottom) to = i; });
+    if (to !== drag.to) {
+      drag.to = to;
+      const shift = rects[from].height;
+      all.forEach((row, i) => {
+        if (row === item) return;
+        let offset = 0;
+        if (from < to && i > from && i <= to) offset = -shift;
+        if (from > to && i >= to && i < from) offset = shift;
+        row.style.transform = offset ? `translateY(${offset}px)` : '';
+      });
+      if (window.haptic) window.haptic.trigger(10);
+    }
+  });
+
+  const finish = async (e) => {
+    if (!drag || (e && e.pointerId !== drag.pointerId)) return;
+    const { item, all, from, to } = drag;
+    drag = null;
+    list.classList.remove('is-sorting');
+    list.classList.add('is-dropping');
+    all.forEach(row => { row.style.transform = ''; });
+    item.classList.remove('is-dragging');
+    if (to !== from) {
+      const ref = to > from ? all[to].nextSibling : all[to];
+      list.insertBefore(item, ref);
+      await onReorder();
+    }
+    requestAnimationFrame(() => list.classList.remove('is-dropping'));
+  };
+  list.addEventListener('pointerup', finish);
+  list.addEventListener('pointercancel', finish);
+
+  // Keyboard: arrow keys on a focused handle
+  list.addEventListener('keydown', async (e) => {
+    const handle = e.target.closest && e.target.closest('.type-handle');
+    if (!handle || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const item = handle.closest('.type-item');
+    const sibling = e.key === 'ArrowUp' ? item.previousElementSibling : item.nextElementSibling;
+    if (!sibling || sibling.classList.contains('is-new')) return;
+    list.insertBefore(item, e.key === 'ArrowUp' ? sibling : sibling.nextSibling);
+    handle.focus();
+    if (window.haptic) window.haptic.trigger(15);
+    await onReorder();
+  });
 }

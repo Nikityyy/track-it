@@ -57,33 +57,42 @@ function copySetLines(name, sets, mode) {
     const notes = [];
 
     if (mode === 'lr') {
+        // Sides come from the set labels, so "right first" exercises stay correct
         const pairs = [];
         for (let i = 0; i < sets.length; i += 2) {
-            pairs.push({ left: sets[i], right: sets[i + 1] });
+            const first = sets[i];
+            const second = sets[i + 1];
+            const firstSide = sideOfSet(first, 'L');
+            pairs.push({
+                first,
+                second,
+                L: firstSide === 'L' ? first : second,
+                R: firstSide === 'L' ? second : first
+            });
         }
+        const order = pairs.length && sideOfSet(pairs[0].first, 'L') === 'R' ? ['R', 'L'] : ['L', 'R'];
         const pauses = pairs.map(copyPairPause);
-        const sameSides = pairs.every(p => p.right &&
-            copyReps(p.left) === copyReps(p.right) &&
-            copyRpe(p.left) === copyRpe(p.right));
+        const sameSides = pairs.every(p => p.second &&
+            copyReps(p.L) === copyReps(p.R) &&
+            copyRpe(p.L) === copyRpe(p.R));
 
         if (sameSides) {
-            const rpes = pairs.map(p => copyRpe(p.left));
-            lines.push(copyLine(`${name} (L=R): ${pairs.map(p => copyReps(p.left)).join('/')}`, rpes, pauses));
+            const rpes = pairs.map(p => copyRpe(p.first));
+            lines.push(copyLine(`${name} (L=R): ${pairs.map(p => copyReps(p.first)).join('/')}`, rpes, pauses));
         } else {
-            const left = pairs.map(p => p.left);
-            const right = pairs.map(p => p.right);
-            const rpeL = left.map(copyRpe);
-            const rpeR = right.map(copyRpe);
-            const head = `${name}: L: ${left.map(copyReps).join('/')} · R: ${right.map(copyReps).join('/')}`;
+            const side = s => pairs.map(p => p[s]);
+            const rpe = s => side(s).map(copyRpe);
+            const head = `${name}: ${order.map(s => `${s}: ${side(s).map(copyReps).join('/')}`).join(' · ')}`;
             const parts = [head];
-            if (hasValues(rpeL) || hasValues(rpeR)) parts.push(`RPE L: ${rpeL.join('/')} · R: ${rpeR.join('/')}`);
+            if (order.some(s => hasValues(rpe(s)))) parts.push(`RPE ${order.map(s => `${s}: ${rpe(s).join('/')}`).join(' · ')}`);
             if (hasValues(pauses)) parts.push(`P ${pauses.join('/')}`);
             lines.push(parts.join(' · '));
         }
 
         pairs.forEach((p, i) => {
-            if (copyNote(p.left)) notes.push(`S${i + 1} L: ${copyNote(p.left)}`);
-            if (copyNote(p.right)) notes.push(`S${i + 1} R: ${copyNote(p.right)}`);
+            for (const s of order) {
+                if (copyNote(p[s])) notes.push(`S${i + 1} ${s}: ${copyNote(p[s])}`);
+            }
         });
     } else {
         lines.push(copyLine(`${name}: ${sets.map(copyReps).join('/')}`, sets.map(copyRpe), sets.map(copyPause)));
@@ -142,12 +151,19 @@ function copyPause(set) {
     return time || '–';
 }
 
-// The pause of a left/right pair is the one after the right side. A pause
-// logged after the left side as well is kept as "left+right".
+// The pause of a left/right pair is the one after its second side. A pause
+// logged after the first side as well is kept as "first+second".
 function copyPairPause(pair) {
-    const right = copyPause(pair.right || pair.left);
-    const left = pair.right ? copyDuration(pair.left && pair.left.breakSeconds) : '';
-    return left ? `${left}+${right}` : right;
+    const last = copyPause(pair.second || pair.first);
+    const between = pair.second ? copyDuration(pair.first && pair.first.breakSeconds) : '';
+    return between ? `${between}+${last}` : last;
+}
+
+function sideOfSet(set, fallback) {
+    const label = String(set && set.label || '');
+    if (label.includes('rechts')) return 'R';
+    if (label.includes('links')) return 'L';
+    return fallback;
 }
 
 function copyNote(item) {

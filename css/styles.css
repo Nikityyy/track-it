@@ -71,10 +71,15 @@ textarea,
     left: 0;
     right: 0;
     z-index: 100;
-    background: var(--header-bg, rgba(0, 0, 0, 0.88));
-    backdrop-filter: blur(16px) saturate(1.4);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    /* Solid, not translucent: content scrolling under a blurred header reads as a smudge */
+    background: var(--bg);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
     padding-top: max(calc(var(--space-sm) * 1.5), env(safe-area-inset-top, 0px));
+}
+
+.app-header.is-scrolled {
+    border-bottom-color: var(--muted-border);
 }
 
 .header-inner {
@@ -311,6 +316,16 @@ textarea,
     font-weight: 700;
 }
 
+/* L ⇄ R swap only matters in Links/Rechts mode */
+.lr-swap {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.exercise-mode-toggle:not(:has(.mode-btn[data-mode="lr"].btn-primary)) .lr-swap {
+    display: none;
+}
+
 .exercise-mode-toggle .btn-ghost,
 .finisher-type-toggle .btn-ghost {
     background: transparent;
@@ -413,7 +428,7 @@ textarea,
 .stepper__btn::after {
     content: '';
     position: absolute;
-    min-height: 44px;
+    min-height: 52px;
     min-width: 100%;
     width: 100%;
     top: 50%;
@@ -580,7 +595,11 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .stepper__input::placeholder {
     color: var(--text-muted);
-    opacity: 0.6;
+    opacity: 0.7;
+    font-size: 13px;
+    font-weight: 650;
+    font-stretch: 100%;
+    letter-spacing: 0.04em;
 }
 
 .stepper__input:focus,
@@ -853,7 +872,221 @@ select option {
 }
 
 .history-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     margin-bottom: calc(var(--space-1) * 2);
+}
+
+/* Workouts | Übungen */
+.segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 14px;
+    background: var(--surface);
+    border-radius: 999px;
+}
+
+.segmented-option {
+    min-height: 40px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 650;
+    color: var(--text-muted);
+    transition: background 0.15s, color 0.15s;
+}
+
+.segmented-option[aria-selected="true"] {
+    background: var(--text-primary);
+    color: var(--bg);
+}
+
+/* One row of filter chips, scrolls sideways instead of wrapping */
+.filter-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin: 0 calc(var(--space-1) * -2);
+    padding: 0 calc(var(--space-1) * 2) 2px;
+    scrollbar-width: none;
+}
+
+.filter-row::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-chip {
+    flex-shrink: 0;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--muted-border-hover);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.filter-chip[aria-pressed="true"] {
+    background: var(--text-primary);
+    border-color: var(--text-primary);
+    color: var(--bg);
+}
+
+.exercise-row {
+    align-items: center;
+}
+
+.exercise-row-weight {
+    font-size: 15px;
+    font-weight: 750;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.exercise-row-chevron {
+    display: flex;
+    color: var(--text-muted);
+}
+
+.exercise-link {
+    text-decoration: underline;
+    text-decoration-color: var(--muted-border-hover);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 4px;
+}
+
+/* ── Exercise progress ── */
+.exercise-hero {
+    display: flex;
+    flex-direction: column;
+    margin: 8px 0 24px;
+}
+
+.exercise-hero-label {
+    font-size: 15px;
+    color: var(--text-muted);
+}
+
+.exercise-hero-value {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.exercise-hero-value .num {
+    font-size: 88px;
+    font-weight: 850;
+    font-stretch: var(--condensed);
+    line-height: 0.85;
+}
+
+.exercise-hero-unit {
+    font-size: 22px;
+    font-weight: 750;
+    font-stretch: var(--condensed);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.exercise-hero-sub {
+    margin-top: 10px;
+    font-size: 15px;
+    color: var(--text-muted);
+}
+
+.exercise-chart {
+    padding: 16px 12px 8px;
+}
+
+.exercise-chart-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    padding: 0 4px;
+}
+
+.exercise-chart-readout {
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.exercise-chart-plot {
+    width: 100%;
+}
+
+.progress-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    font-family: var(--font);
+}
+
+.chart-grid {
+    stroke: var(--muted-border);
+    stroke-width: 1;
+}
+
+.chart-axis {
+    fill: var(--text-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.chart-line {
+    fill: none;
+    stroke: var(--chart-accent);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.chart-dot {
+    fill: var(--chart-accent);
+    stroke: var(--surface);
+    stroke-width: 2;
+}
+
+.chart-dot.is-active {
+    r: 6;
+}
+
+.chart-label {
+    fill: var(--text-primary);
+    font-size: 12px;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+}
+
+.chart-crosshair {
+    stroke: var(--text-muted);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+}
+
+.chart-hit {
+    fill: transparent;
+    cursor: crosshair;
+}
+
+.session-sets {
+    font-size: 17px;
+    font-weight: 650;
+    margin-top: 2px;
+}
+
+.session-meta {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--text-muted);
 }
 
 /* ── Empty State ── */
@@ -893,10 +1126,10 @@ select option {
     padding: 10px 12px;
 }
 
-/* Edit leads; copy and share pair up; delete sits apart at the end */
-.detail-actions #btn-edit-workout {
+/* Edit and repeat lead; share and copy pair up; delete sits apart at the end */
+.detail-actions #btn-edit-workout,
+.detail-actions #btn-repeat-workout {
     order: -1;
-    grid-column: 1 / -1;
     min-height: 52px;
     font-size: 16px;
 }
@@ -1054,10 +1287,8 @@ select option {
     position: sticky;
     bottom: 0;
     z-index: 90;
-    background: var(--header-bg);
-    backdrop-filter: blur(16px) saturate(1.4);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    border-top: none;
+    background: var(--bg);
+    border-top: 1px solid var(--muted-border);
     padding-top: var(--space-sm);
     padding-bottom: max(var(--space-md), env(safe-area-inset-bottom, 0px));
     margin-top: var(--space-lg);
@@ -1109,6 +1340,84 @@ select option {
 .exercise-card-header .exercise-name::placeholder {
     color: var(--text-muted);
     opacity: 0.5;
+}
+
+/* ── Exercise name suggestions ── */
+.exercise-card-header,
+.finisher-entry-header {
+    position: relative;
+}
+
+.name-suggest {
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    top: calc(100% + 6px);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    background: var(--surface-2);
+    border-radius: 18px;
+    box-shadow: 0 18px 40px var(--shadow);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.14s ease-out, transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.name-suggest.is-open {
+    opacity: 1;
+    transform: none;
+}
+
+.name-suggest-heading {
+    padding: 6px 10px 4px;
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--text-muted);
+}
+
+.name-suggest-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 46px;
+    padding: 0 12px;
+    border-radius: 12px;
+    text-align: left;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.name-suggest-item:active {
+    background: var(--surface-hover);
+}
+
+.name-suggest-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.name-suggest-name mark {
+    background: none;
+    color: inherit;
+    font-weight: 750;
+}
+
+.name-suggest-meta {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .name-suggest {
+        transition: none;
+    }
 }
 
 .exercise-mode-toggle {
@@ -1471,22 +1780,120 @@ select option {
     margin-bottom: 2px;
 }
 
+/* ── Workout types: one grouped list, drag by the handle ── */
+.type-hint {
+    display: block;
+    margin: -6px 0 12px;
+}
+
 .type-list {
+    list-style: none;
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
     margin-bottom: calc(var(--space-1) * 1.5);
+    padding: 0 4px;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+}
+
+.type-list:empty {
+    display: none;
 }
 
 .type-item {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: 4px;
+    min-height: 56px;
+    background: var(--surface);
+    border-radius: 14px;
+    transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.18s;
+}
+
+.type-item + .type-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 48px;
+    right: 12px;
+    border-top: 1px solid var(--muted-border);
+}
+
+.type-handle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 52px;
+    color: var(--text-muted);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    border-radius: 12px;
+}
+
+.type-handle:active {
+    cursor: grabbing;
 }
 
 .type-item .type-input {
     flex: 1;
-    font-size: 16px;
+    min-width: 0;
+    padding: 10px 8px;
+    background: transparent;
+    border-color: transparent;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.type-item .type-input:focus {
+    background: var(--surface-2);
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.type-count {
+    flex-shrink: 0;
+    min-width: 20px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.type-count:not(:empty)::after {
+    content: '×';
+}
+
+/* The row being dragged lifts; the others slide, nothing else animates */
+.type-list.is-sorting .type-item {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.type-item.is-dragging {
+    z-index: 5;
+    transition: box-shadow 0.18s;
+    background: var(--surface-2);
+    box-shadow: 0 14px 30px var(--shadow);
+}
+
+.type-item.is-dragging::before,
+.type-list.is-sorting .type-item::before {
+    opacity: 0;
+}
+
+.type-list.is-dropping .type-item {
+    transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .type-item {
+        transition: none;
+    }
 }
 
 .about-info {
