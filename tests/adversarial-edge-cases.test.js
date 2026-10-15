@@ -68,7 +68,7 @@ console.log('✓ web-haptics recursion guard verified');
 
 // ── 3. service-worker.js safety & relative cache matching ──
 const swSrc = read('service-worker.js');
-assert.ok(swSrc.includes('try { e.waitUntil(networkFetch); } catch {}'), 'service worker must guard e.waitUntil');
+assert.ok(swSrc.includes('Response.error()'), 'service worker must fail cleanly when offline and uncached');
 assert.ok(swSrc.includes("cache.match('./index.html')"), 'SW must support relative index.html matching');
 assert.ok(swSrc.includes("cache.match('./')"), 'SW must support relative scope root matching');
 console.log('✓ service-worker relative caching and try-catch verified');

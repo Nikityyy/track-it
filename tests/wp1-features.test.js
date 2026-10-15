@@ -21,11 +21,11 @@ assert.equal(descMatches ? descMatches.length : 0, 1, 'There should be exactly o
 
 // 2. Test service-worker.js requirements
 const swContent = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
-assert.ok(swContent.includes("CACHE_NAME = 'trackit-cache-v11'"), 'Cache name should be trackit-cache-v11');
+assert.ok(/CACHE_NAME = 'trackit-[0-9a-f]{10}'/.test(swContent), 'Cache name should be the content stamp (npm run stamp)');
 assert.ok(swContent.includes("'./fonts/archivo-latin.woff2'") && swContent.includes("'./fonts/archivo-latin-ext.woff2'"), 'PRECACHE_URLS should contain the self-hosted fonts');
 assert.ok(swContent.includes("'./vendor/lucide.min.js'"), 'PRECACHE_URLS should contain vendor/lucide.min.js');
 assert.ok(swContent.includes("'./vendor/web-haptics.js'"), 'PRECACHE_URLS should contain vendor/web-haptics.js');
-assert.ok(swContent.includes('cachedResponse'), 'Should implement Stale-While-Revalidate returning cachedResponse if found');
+assert.ok(swContent.includes('cache.match(e.request, { ignoreSearch: true })'), 'Should serve the app from the versioned cache');
 assert.ok(!swContent.match(/'\/(css|js|vendor|icons|manifest)/), 'No root-relative paths in service-worker precache');
 assert.ok(!indexHtml.match(/src\s*=\s*['"]\/(?!#)/), 'No root-relative script/img src in index.html');
 assert.ok(!indexHtml.match(/href\s*=\s*['"]\/(?!#)/), 'No root-relative link href in index.html');

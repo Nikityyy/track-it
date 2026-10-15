@@ -113,11 +113,77 @@ document.addEventListener('DOMContentLoaded', async () => {
     Router.init();
 
     // Register service worker
-    if ('serviceWorker' in navigator) {
-        try {
-            await navigator.serviceWorker.register('./service-worker.js');
-        } catch (e) {
-            console.log('SW registration failed:', e);
+    if (sessionStorage.getItem('trackit-updated')) {
+        sessionStorage.removeItem('trackit-updated');
+        setTimeout(() => showToast('Neue Version geladen'), 400);
+    }
+
+    registerServiceWorker();
+});
+
+/* Updates: check on launch, whenever the app comes back to the foreground
+ * (iOS mostly resumes PWAs instead of reloading them) and every 30 minutes.
+ * A new version installs completely in the background; when it takes over,
+ * the page reloads into it. Workouts are in IndexedDB and drafts/timers in
+ * localStorage, so a reload loses nothing; an open workout is saved first
+ * and reopened after the reload. */
+async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    let registration;
+    try {
+        registration = await navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' });
+    } catch (e) {
+        console.log('SW registration failed:', e);
+        return;
+    }
+
+    const checkForUpdate = () => registration.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkForUpdate();
+    });
+    setInterval(checkForUpdate, 30 * 60 * 1000);
+
+    // The very first install also hands control to a worker; that page already
+    // runs the current files, so only later handovers mean a new version
+    let controlled = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!controlled) { controlled = true; return; }
+        if (reloading) return;
+        reloading = true;
+        reloadIntoNewVersion();
+    });
+}
+
+function isTyping() {
+    const el = document.activeElement;
+    return !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(el.type)));
+}
+
+function reloadIntoNewVersion() {
+    // Never pull the page away mid-typing: wait for the field to lose focus
+    // or for the app to be backgrounded, whichever comes first
+    if (isTyping()) {
+        const retry = () => {
+            if (isTyping() && document.visibilityState === 'visible') return;
+            document.removeEventListener('focusout', onFocusOut, true);
+            document.removeEventListener('visibilitychange', retry);
+            reloadIntoNewVersion();
+        };
+        const onFocusOut = () => setTimeout(retry, 0);
+        document.addEventListener('focusout', onFocusOut, true);
+        document.addEventListener('visibilitychange', retry);
+        return;
+    }
+
+    // Save an open workout synchronously, then reopen exactly it after the reload
+    if (document.getElementById('workout-form') && typeof saveCurrentDraft === 'function') {
+        saveCurrentDraft();
+        const draft = typeof readDraftMirror === 'function' ? readDraftMirror() : null;
+        if (draft && draft.workout && typeof getDraftPath === 'function') {
+            history.replaceState(history.state, '', '#' + getDraftPath(draft));
         }
     }
-});
+    try { sessionStorage.setItem('trackit-updated', '1'); } catch (e) { /* ignore */ }
+    window.location.reload();
+}
