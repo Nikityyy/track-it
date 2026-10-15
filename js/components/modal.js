@@ -33,12 +33,14 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
 
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('modal-overlay--visible'));
+  document.documentElement?.classList?.add('modal-open');
 
   let closed = false;
   const close = () => {
     if (closed) return;
     closed = true;
     overlay.classList.remove('modal-overlay--visible');
+    document.documentElement?.classList?.remove('modal-open');
     const fallback = setTimeout(() => overlay.remove(), 200);
     overlay.addEventListener('transitionend', () => {
       clearTimeout(fallback);

@@ -49,7 +49,7 @@ console.log('✓ Design tokens verified successfully');
 
 // 2. Safe Areas
 assert(
-  stylesCss.includes('padding-top: max(calc(var(--space-sm) * 1.5), env(safe-area-inset-top, 0px));'),
+  stylesCss.includes('padding-top: max(calc(var(--space-sm) * 2), env(safe-area-inset-top, 0px));'),
   'Missing .app-header safe-area padding-top'
 );
 assert(

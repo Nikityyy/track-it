@@ -35,6 +35,11 @@
 </head>
 
 <body>
+    <!-- iOS colours the status bar from a fixed bar at the top edge; with no
+         bar there (e.g. before the header is rendered) it blurs the top of the
+         app instead, for as long as it stays open. This strip is there from the
+         first frame and never changes, so iOS always finds it. -->
+    <div id="top-edge" aria-hidden="true"></div>
     <div id="app"></div>
     <script src="./js/utils.js"></script>
     <script src="./js/db.js"></script>

@@ -79,11 +79,30 @@ textarea,
     background: var(--bg);
     border-bottom: 1px solid transparent;
     transition: border-color 0.2s;
-    padding-top: max(calc(var(--space-sm) * 1.5), env(safe-area-inset-top, 0px));
+    padding-top: max(calc(var(--space-sm) * 2), env(safe-area-inset-top, 0px));
 }
 
 .app-header.is-scrolled {
     border-bottom-color: var(--muted-border);
+}
+
+/* Persistent, opaque top-edge strip (see index.html). Above everything,
+ * covers only the header's top padding, never takes a tap. iOS ignores
+ * edge bars of 10px or less, so it is 16px. */
+#top-edge {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 16px;
+    background: var(--bg);
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* Same strip, dimmed like the page behind an open dialog */
+.modal-open #top-edge {
+    background: color-mix(in srgb, var(--bg) 40%, #000);
 }
 
 .header-inner {
