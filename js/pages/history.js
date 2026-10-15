@@ -120,10 +120,14 @@ async function renderHistoryPage() {
     }).join('');
   }
 
-  const periodChips = HISTORY_PERIODS.map(p =>
-    `<button type="button" class="filter-chip" data-period="${p.id}" aria-pressed="${state.period === p.id}">${p.label}</button>`).join('');
-  const typeChips = [`<button type="button" class="filter-chip" data-type="" aria-pressed="${!state.type}">Alle Typen</button>`]
-    .concat(typeNames.map(t => `<button type="button" class="filter-chip" data-type="${escapeHtml(t)}" aria-pressed="${state.type === t}">${escapeHtml(t)}</button>`)).join('');
+  // Chips are radio options, not <button>s: ios-vibrator-pro-max lays a tap
+  // overlay over every button, and for chips scrolled out of view sideways
+  // that overlay sticks out of the page and makes it scroll horizontally.
+  const chip = (attr, value, label, selected) =>
+    `<span class="filter-chip" role="radio" tabindex="0" ${attr}="${escapeHtml(value)}" aria-checked="${selected}">${escapeHtml(label)}</span>`;
+  const periodChips = HISTORY_PERIODS.map(p => chip('data-period', p.id, p.label, state.period === p.id)).join('');
+  const typeChips = [chip('data-type', '', 'Alle Typen', !state.type)]
+    .concat(typeNames.map(t => chip('data-type', t, t, state.type === t))).join('');
 
   app.innerHTML = `
     <div class="page page-history">
@@ -137,8 +141,8 @@ async function renderHistoryPage() {
       </div>
       <div class="history-filters">
         <input type="search" id="history-search" class="input" placeholder="Suchen …" aria-label="Workouts oder Übungen suchen" value="${escapeHtml(state.query)}">
-        <div class="filter-row" role="group" aria-label="Zeitraum">${periodChips}</div>
-        ${typeNames.length > 1 ? `<div class="filter-row" role="group" aria-label="Workout-Typ">${typeChips}</div>` : ''}
+        <div class="filter-row" role="radiogroup" aria-label="Zeitraum">${periodChips}</div>
+        ${typeNames.length > 1 ? `<div class="filter-row" role="radiogroup" aria-label="Workout-Typ">${typeChips}</div>` : ''}
       </div>
       <div class="workout-list" id="history-workout-list"></div>
     </div>
@@ -202,8 +206,8 @@ async function renderHistoryPage() {
   }
 
   function syncChips() {
-    app.querySelectorAll('.filter-chip[data-period]').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.period === state.period)));
-    app.querySelectorAll('.filter-chip[data-type]').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.type === state.type)));
+    app.querySelectorAll('.filter-chip[data-period]').forEach(c => c.setAttribute('aria-checked', String(c.dataset.period === state.period)));
+    app.querySelectorAll('.filter-chip[data-type]').forEach(c => c.setAttribute('aria-checked', String(c.dataset.type === state.type)));
     app.querySelectorAll('.segmented-option').forEach(c => c.setAttribute('aria-selected', String(c.dataset.view === state.view)));
   }
 
@@ -217,6 +221,14 @@ async function renderHistoryPage() {
     if (window.haptic) window.haptic.trigger(15);
     syncChips();
     updateFilteredList();
+  });
+
+  // Chips are not buttons, so give them the keyboard behaviour of one
+  app.querySelector('.page-history').addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('filter-chip')) {
+      e.preventDefault();
+      e.target.click();
+    }
   });
 
   searchInput?.addEventListener('input', updateFilteredList);

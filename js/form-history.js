@@ -55,11 +55,13 @@ function recordFormHistory() {
 
 function undoFormChange() {
   if (_formHistoryIndex <= 0) return;
+  if (typeof window !== 'undefined' && window.haptic) window.haptic.trigger(20);
   restoreHistoryAt(_formHistoryIndex - 1);
 }
 
 function redoFormChange() {
   if (_formHistoryIndex >= _formHistory.length - 1) return;
+  if (typeof window !== 'undefined' && window.haptic) window.haptic.trigger(20);
   restoreHistoryAt(_formHistoryIndex + 1);
 }
 

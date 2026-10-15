@@ -55,6 +55,7 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
     close();
   });
   overlay.querySelector('.modal-confirm').addEventListener('click', () => {
+    if (window.haptic && !danger) window.haptic.trigger(20);
     if (onConfirm) onConfirm();
     close();
   });

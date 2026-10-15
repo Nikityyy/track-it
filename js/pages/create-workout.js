@@ -728,6 +728,7 @@ function bindFormEvents(workout) {
   });
 
   document.getElementById('finisher-toggle').addEventListener('change', (e) => {
+    if (window.haptic) window.haptic.trigger(e.target.checked ? 40 : 20);
     const container = document.getElementById('finisher-container');
     if (e.target.checked) {
       const finisher = workout.finisher && workout.finisher.type
@@ -987,6 +988,7 @@ function handleSkipToggle(skipBtn) {
   const row = skipBtn.closest('.set-row') || skipBtn.closest('.finisher-entry');
   if (!row) return;
   const isNowSkipped = !row.classList.contains('skipped');
+  if (window.haptic) window.haptic.trigger(isNowSkipped ? 'warning' : 20);
   row.classList.toggle('skipped', isNowSkipped);
   skipBtn.classList.toggle('active', isNowSkipped);
   row.querySelectorAll('input:not([type="hidden"]), .stepper__btn').forEach(el => {
@@ -1009,6 +1011,7 @@ function confirmRemove(title, bodyText, onConfirm) {
 }
 
 function setMode(card, newMode) {
+  if (window.haptic) window.haptic.trigger('selection');
   card.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('btn-primary', b.dataset.mode === newMode);
     b.classList.toggle('btn-ghost', b.dataset.mode !== newMode);

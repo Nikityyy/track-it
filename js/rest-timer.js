@@ -53,9 +53,12 @@ function handleRestTimerButton(btn) {
   if (!row || row.classList.contains('skipped')) return;
 
   if (_activeRestTimer && _activeRestTimer.row === row) {
+    if (typeof window !== 'undefined' && window.haptic) window.haptic.trigger(20);
     pauseActiveRestTimer(true);
     return;
   }
+  // Starting the clock is the moment that matters most: a firmer tap
+  if (typeof window !== 'undefined' && window.haptic) window.haptic.trigger(40);
 
   pauseActiveRestTimer(true);
   const input = row.querySelector('.set-break');

@@ -8,6 +8,10 @@
 }
 
 html {
+    /* Never scroll sideways, whatever sticks out (also covers body being
+       display: contents while ios-vibrator-pro-max wraps the page) */
+    overflow-x: hidden;
+    overflow-x: clip;
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -929,13 +933,21 @@ select option {
     transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.filter-chip[aria-pressed="true"] {
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.filter-chip[aria-checked="true"] {
     background: var(--text-primary);
     border-color: var(--text-primary);
     color: var(--bg);
 }
 
-.exercise-row {
+.workout-card-v2.exercise-row {
     align-items: center;
 }
 
@@ -952,11 +964,19 @@ select option {
     color: var(--text-muted);
 }
 
+/* Tappable exercise name: a quiet dotted line, solid ink while pressed */
 .exercise-link {
-    text-decoration: underline;
-    text-decoration-color: var(--muted-border-hover);
-    text-decoration-thickness: 1.5px;
-    text-underline-offset: 4px;
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--text-muted);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+    text-decoration-skip-ink: none;
+}
+
+.exercise-link:active {
+    text-decoration-style: solid;
+    text-decoration-color: var(--text-primary);
 }
 
 /* ── Exercise progress ── */

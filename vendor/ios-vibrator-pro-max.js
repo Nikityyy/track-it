@@ -1022,7 +1022,7 @@
     // example through its enlarged hit area, outside its overlay) has been
     // handled once; re-dispatching a copy here made it count twice.
     if (!ignoreRootClick && event.isTrusted && event.target.closest &&
-      event.target.closest('button, a[href], input, select, textarea, [role="button"]')) {
+      event.target.closest('button, a[href], input, select, textarea, [role="button"], [role="radio"], [role="tab"], [role="option"]')) {
       return;
     }
     if (ignoreRootClick) {
