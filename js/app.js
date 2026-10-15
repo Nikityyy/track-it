@@ -3,15 +3,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const savedTheme = localStorage.getItem('trackit-theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
 
-    // Init DB
+    // Init DB (the app shell itself is static HTML in index.html)
     await openDB();
-
-    // Build app shell
-    const root = document.getElementById('app');
-    root.innerHTML = `
-    ${renderHeader()}
-    <main id="app-content" class="app-content"></main>
-  `;
 
     // In-app links navigate through the router instead of the browser default.
     // ios-vibrator-pro-max re-dispatches taps as synthetic clicks and cancels

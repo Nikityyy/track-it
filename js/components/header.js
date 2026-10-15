@@ -1,19 +1,4 @@
-function renderHeader() {
-  return `
-    <header class="app-header">
-      <div class="header-inner">
-        <a href="#/" class="header-brand" aria-label="Track It! Startseite">
-          <span class="header-title">Track <b>It!</b></span>
-        </a>
-        <nav class="header-nav" aria-label="Hauptnavigation">
-          <a href="#/" class="nav-link" data-nav="home" aria-label="Startseite">${icon('home', 18)}</a>
-          <a href="#/history" class="nav-link" data-nav="history" aria-label="Verlauf">${icon('history', 18)}</a>
-          <a href="#/settings" class="nav-link" data-nav="settings" aria-label="Einstellungen">${icon('settings', 18)}</a>
-        </nav>
-      </div>
-    </header>
-  `;
-}
+// The header markup is static HTML in index.html, so it is there from the first frame.
 
 function updateActiveNav() {
   const hash = window.location.hash.slice(1) || '/';
