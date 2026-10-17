@@ -1,6 +1,14 @@
-function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, onConfirm, onCancel, danger }) {
+function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, onConfirm, onCancel, danger, focus }) {
+  // A dialog replaced by a new one counts as dismissed, so whoever waits on
+  // its answer still gets one
   const existing = document.querySelector('.modal-overlay');
-  if (existing) existing.remove();
+  if (existing) {
+    if (existing._dismiss) existing._dismiss();
+    existing.remove();
+  }
+
+  const opener = document.activeElement;
+  const scrollYAtOpen = window.scrollY;
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -32,45 +40,57 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
   }
 
   document.body.appendChild(overlay);
+  setPageBehindModal(true);
+  const stopFollowingViewport = followVisualViewport(overlay);
   requestAnimationFrame(() => overlay.classList.add('modal-overlay--visible'));
 
   let closed = false;
   const close = () => {
     if (closed) return;
     closed = true;
+    stopFollowingViewport();
+    // The fading dialog no longer takes taps; the page does again right away
+    overlay.classList.add('modal-overlay--closing');
+    overlay.inert = true;
+    setPageBehindModal(false);
+    document.dispatchEvent(new Event('trackit:modalclose'));
+    if (window.scrollY !== scrollYAtOpen) window.scrollTo(0, scrollYAtOpen);
+    if (opener && opener.isConnected && opener.matches && opener.matches('button, a[href]')) {
+      opener.focus({ preventScroll: true });
+    }
     overlay.classList.remove('modal-overlay--visible');
     const fallback = setTimeout(() => overlay.remove(), 200);
-    overlay.addEventListener('transitionend', () => {
+    overlay.addEventListener('transitionend', (e) => {
+      if (e.target !== overlay) return;
       clearTimeout(fallback);
       overlay.remove();
-    }, { once: true });
+    });
   };
-
-  overlay.querySelector('.modal-close').addEventListener('click', () => {
-    if (onCancel) onCancel();
+  // Each answer runs once, however many click events one tap produces
+  const cancel = () => {
+    if (closed) return;
     close();
-  });
-  overlay.querySelector('.modal-cancel').addEventListener('click', () => {
     if (onCancel) onCancel();
-    close();
-  });
-  overlay.querySelector('.modal-confirm').addEventListener('click', () => {
+  };
+  const confirm = () => {
+    if (closed) return;
     if (window.haptic && !danger) window.haptic.trigger(20);
-    if (onConfirm) onConfirm();
     close();
-  });
+    if (onConfirm) onConfirm();
+  };
+  overlay._dismiss = cancel;
+
+  overlay.querySelector('.modal-close').addEventListener('click', cancel);
+  overlay.querySelector('.modal-cancel').addEventListener('click', cancel);
+  overlay.querySelector('.modal-confirm').addEventListener('click', confirm);
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      if (onCancel) onCancel();
-      close();
-    }
+    if (e.target === overlay) cancel();
   });
 
   // Focus trap
   overlay.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' || e.keyCode === 27) {
-        if (onCancel) onCancel();
-        close();
+        cancel();
         return;
     }
 
@@ -80,7 +100,7 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
     const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
     const focusableContent = overlay.querySelectorAll(focusableElements);
     if (focusableContent.length === 0) return;
-    
+
     const firstFocusableElement = focusableContent[0];
     const lastFocusableElement = focusableContent[focusableContent.length - 1];
 
@@ -97,9 +117,42 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
     }
   });
 
-  if (danger) {
-    overlay.querySelector('.modal-cancel').focus();
+  // Focus now, inside the tap that opened the dialog: iOS only shows the
+  // keyboard for a text field focused during the tap itself
+  if (focus) {
+    focus.focus({ preventScroll: true });
+    if (typeof focus.setSelectionRange === 'function') focus.setSelectionRange(focus.value.length, focus.value.length);
+  } else if (danger) {
+    overlay.querySelector('.modal-cancel').focus({ preventScroll: true });
   } else {
-    overlay.querySelector('.modal-confirm').focus();
+    overlay.querySelector('.modal-confirm').focus({ preventScroll: true });
   }
+}
+
+/* While a dialog is open the page behind it neither scrolls nor takes taps
+ * or focus (`inert` also hides the haptics library's tap overlays there). */
+function setPageBehindModal(open) {
+  const app = document.getElementById('app');
+  if (app) app.inert = open;
+  document.documentElement.classList.toggle('modal-open', open);
+}
+
+/* Keep the dialog inside the part of the screen that is visible. When the
+ * iPhone keyboard opens, only the visual viewport shrinks; without this the
+ * dialog stays centred on the whole screen with its buttons under the keyboard. */
+function followVisualViewport(overlay) {
+  const vv = window.visualViewport;
+  if (!vv) return () => {};
+  const fit = () => {
+    overlay.style.top = `${vv.offsetTop}px`;
+    overlay.style.height = `${vv.height}px`;
+    overlay.style.bottom = 'auto';
+  };
+  fit();
+  vv.addEventListener('resize', fit);
+  vv.addEventListener('scroll', fit);
+  return () => {
+    vv.removeEventListener('resize', fit);
+    vv.removeEventListener('scroll', fit);
+  };
 }

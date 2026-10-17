@@ -1,4 +1,4 @@
-/*! ios-vibrator-pro-max 3.0.3 | ISC License | (c) Sam Denty | https://github.com/samdenty/ios-vibrator-pro-max | bundled from the npm package for static hosting; three small patches, marked "Track It! patch" */
+/*! ios-vibrator-pro-max 3.0.3 | ISC License | (c) Sam Denty | https://github.com/samdenty/ios-vibrator-pro-max | bundled from the npm package for static hosting; five small patches, marked "Track It! patch" */
 (() => {
   // x/package/dist/utils/supported-versions.js
   function getSafariVersion() {
@@ -376,7 +376,15 @@
       openBackgroundPopup();
     }
   }
+  // Track It! patch (4/5): every tap and keystroke started another copy of
+  // this endless loop, so after a workout thousands of timers fired each
+  // second. One loop does the same job.
+  var grantLoopRunning = false;
   async function allowVibrationsDuringGrant() {
+    if (grantLoopRunning) {
+      return;
+    }
+    grantLoopRunning = true;
     let adjustment = 0;
     while (true) {
       const [vibrateMs, waitMs] = getVibration();
@@ -640,6 +648,7 @@
     };
   }
   var lastActiveTrigger = typeof document !== "undefined" ? document.activeElement : null;
+  // Track It! patch (4/5): was a 0ms interval (about 250 runs a second)
   setInterval(() => {
     const activeElement = typeof document !== "undefined" ? document.activeElement : null;
     if (activeElement === lastActiveTrigger) {
@@ -664,7 +673,7 @@
     }
     hiddenTriggers.add(trigger.label);
     trigger.label.remove();
-  });
+  }, 100);
 
   // x/package/dist/methods/click-passthrough/forward-events.js
   function clonePointerEvent(type, event) {
@@ -1018,7 +1027,7 @@
     if (isNativeMovableElement(event.target)) {
       return;
     }
-    // Track It! patch (3/3): a real tap that already reached a control (for
+    // Track It! patch (3/5): a real tap that already reached a control (for
     // example through its enlarged hit area, outside its overlay) has been
     // handled once; re-dispatching a copy here made it count twice.
     if (!ignoreRootClick && event.isTrusted && event.target.closest &&
@@ -1041,8 +1050,31 @@
     }
     event.preventDefault();
   });
+  // Track It! patch (5/5): overlays sit above everything. Behind an open
+  // dialog (the page is made inert) they covered the dialog's text field, and
+  // while typing they made every keystroke re-lay out one overlay per button.
+  // Hide them in both cases; taps then reach the real element directly.
+  var TEXT_ENTRY = 'textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"])';
+  function isOverlaySuspended(element) {
+    if (element.closest && element.closest("[inert]")) {
+      return true;
+    }
+    const active = document.activeElement;
+    return !!(active && active !== element && active.matches && active.matches(TEXT_ENTRY));
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("focusin", (event) => {
+      if (event.target.matches && event.target.matches(TEXT_ENTRY)) {
+        updateStyles();
+      }
+    }, true);
+    // Bring them back only after the tap that moved focus away has ended;
+    // returning mid-tap, they would catch its end and lose the click
+    document.addEventListener("focusout", () => setTimeout(updateStyles, 350), true);
+    new MutationObserver(() => updateStyles()).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["inert"] });
+  }
   function handleClickable(element, force = false) {
-    // Track It! patch (1/3): no overlay on text entry fields. A tap routed
+    // Track It! patch (1/5): no overlay on text entry fields. A tap routed
     // through the overlay focuses the field with the caret at the start.
     if (!force && element.matches && element.matches('textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"])')) {
       return;
@@ -1071,7 +1103,7 @@
       if (isInputRange && event.target === trigger.input) {
         return;
       }
-      // Track It! patch (2/3): overlays sit at the top z-index, above modals
+      // Track It! patch (2/5): overlays sit at the top z-index, above modals
       // and fixed bars too. Remember what is really under the finger when it
       // is not this overlay's element, and send the tap there instead.
       triggersRoot.style.display = "none";
@@ -1132,6 +1164,9 @@
     const existingAnchorName = computedStyle.getPropertyValue("anchor-name");
     element.style.setProperty("anchor-name", `${anchorName}${existingAnchorName !== "none" ? `, ${existingAnchorName}` : ""}`);
     const [updateStyles2, disposeStyles] = registerStyleUpdater(trigger.label, () => {
+      if (isOverlaySuspended(element)) {
+        return ["all: unset", "display: none"];
+      }
       const computedStyle2 = getComputedStyle(element);
       const highlightColor = computedStyle2.getPropertyValue("-webkit-tap-highlight-color");
       return [
@@ -1169,7 +1204,7 @@
       return;
     }
     const { clientX, clientY } = event;
-    const rects = [...clickableTriggers].map(([element, trigger2]) => {
+    const rects = [...clickableTriggers].filter(([element]) => !isOverlaySuspended(element)).map(([element, trigger2]) => {
       const rect = element.getBoundingClientRect();
       const dx = Math.max(rect.left - clientX, 0, clientX - rect.right);
       const dy = Math.max(rect.top - clientY, 0, clientY - rect.bottom);

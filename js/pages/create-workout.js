@@ -979,9 +979,9 @@ function handleNoteClick(noteBtn) {
       hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
       noteBtn.classList.toggle('has-note', !!textarea.value);
       recordFormHistory();
-    }
+    },
+    focus: textarea
   });
-  setTimeout(() => textarea.focus(), 50);
 }
 
 function handleSkipToggle(skipBtn) {

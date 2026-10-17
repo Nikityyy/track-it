@@ -1981,6 +1981,7 @@ select option {
     justify-content: center;
     z-index: 500;
     padding: calc(var(--space-1) * 2);
+    overscroll-behavior: contain;
     opacity: 0;
     transition: opacity 0.15s;
 }
@@ -1989,12 +1990,25 @@ select option {
     opacity: 1;
 }
 
+/* Fading out: taps already go to the page again */
+.modal-overlay--closing {
+    pointer-events: none;
+}
+
+/* The page behind an open dialog stays where it is */
+html.modal-open {
+    overflow: hidden;
+}
+
 .modal-card {
     background: var(--surface);
     border: none;
     border-radius: 28px;
     width: 100%;
     max-width: 400px;
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     box-shadow: 0 16px 48px var(--shadow);
 }
 

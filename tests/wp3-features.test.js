@@ -15,7 +15,7 @@ function read(file) {
 // ── 1. Test modal.js (U3: Focus cancel on danger modal) ──
 const modalSrc = read('js/components/modal.js');
 assert.ok(modalSrc.includes('if (danger)'), 'modal.js should branch on danger flag');
-assert.ok(modalSrc.includes("overlay.querySelector('.modal-cancel').focus()"), 'modal.js should focus cancel button when danger is true');
+assert.ok(modalSrc.includes("overlay.querySelector('.modal-cancel').focus("), 'modal.js should focus cancel button when danger is true');
 
 // Execute modal.js in VM to test focus behavior
 let cancelFocused = false;
@@ -24,6 +24,10 @@ const modalContext = {
   Node: class Node {},
   document: {
     querySelector: () => null,
+    getElementById: () => null,
+    documentElement: { classList: { toggle: () => {} } },
+    activeElement: null,
+    dispatchEvent: () => {},
     createElement: () => {
       const el = {
         className: '',
@@ -44,6 +48,7 @@ const modalContext = {
     },
     body: { appendChild: () => {} }
   },
+  window: { scrollY: 0 },
   escapeHtml: (s) => s,
   icon: () => '<svg></svg>',
   requestAnimationFrame: (cb) => cb(),

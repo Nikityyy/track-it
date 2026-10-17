@@ -153,19 +153,28 @@ function isTyping() {
     return !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(el.type)));
 }
 
+// An open dialog holds input that is not saved anywhere yet (a note being written)
+function isDialogOpen() {
+    return !!document.querySelector('.modal-overlay:not(.modal-overlay--closing)');
+}
+
 function reloadIntoNewVersion() {
     // Never pull the page away mid-typing: wait for the field to lose focus
-    // or for the app to be backgrounded, whichever comes first
-    if (isTyping()) {
+    // or for the app to be backgrounded, whichever comes first. An open
+    // dialog always waits until it is closed.
+    if (isTyping() || isDialogOpen()) {
         const retry = () => {
+            if (isDialogOpen()) return;
             if (isTyping() && document.visibilityState === 'visible') return;
             document.removeEventListener('focusout', onFocusOut, true);
             document.removeEventListener('visibilitychange', retry);
+            document.removeEventListener('trackit:modalclose', onFocusOut);
             reloadIntoNewVersion();
         };
         const onFocusOut = () => setTimeout(retry, 0);
         document.addEventListener('focusout', onFocusOut, true);
         document.addEventListener('visibilitychange', retry);
+        document.addEventListener('trackit:modalclose', onFocusOut);
         return;
     }
 
