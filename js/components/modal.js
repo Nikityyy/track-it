@@ -11,7 +11,10 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
   const scrollYAtOpen = window.scrollY;
 
   const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
+  // A dialog for typing sits up top from the start, where it stays when the
+  // keyboard opens, instead of jumping up out of the centre
+  const forTyping = !!(focus && focus.matches && focus.matches('textarea, input'));
+  overlay.className = forTyping ? 'modal-overlay modal-overlay--typing' : 'modal-overlay';
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', title);

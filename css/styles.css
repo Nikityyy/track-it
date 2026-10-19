@@ -1990,6 +1990,11 @@ select option {
     opacity: 1;
 }
 
+.modal-overlay--typing {
+    align-items: flex-start;
+    padding-top: max(calc(var(--space-1) * 2), calc(var(--inset-top) + var(--space-md)));
+}
+
 /* Fading out: taps already go to the page again */
 .modal-overlay--closing {
     pointer-events: none;
