@@ -445,7 +445,7 @@ function renderSetRow(set, index, disableRemove = false) {
       <div class="set-label" data-raw-label="${escapeHtml(label)}">
         <div class="set-badge">${numStr}${sideStr ? `<div class="side">${sideStr}</div>` : ''}</div>
       </div>
-      ${renderNumberStepper('reps', 'set-reps', set.reps || 0, 0, '', isSkipped, 'Wiederholungen')}
+      ${renderNumberStepper('reps', 'set-reps', Number(set.reps) > 0 ? set.reps : '', 0, '', isSkipped, 'Wiederholungen')}
       ${renderNumberStepper('rpe', 'set-rpe', set.rpe ?? '', 1, 10, isSkipped, 'RPE')}
       ${renderNumberStepper('break', 'set-break', set.breakSeconds || 0, 0, '', isSkipped, 'Pause in Sekunden', 15)}
       <div class="set-actions">
@@ -464,7 +464,7 @@ function renderNumberStepper(target, inputClass, value, min, max, disabled, labe
   return `
     <div class="stepper stepper-sm stepper-minimal stepper-${target}">
       <button type="button" class="stepper__btn stepper-dec" data-target="${target}" data-step="${step}" aria-label="Weniger"${disabled ? ' disabled' : ''}>−</button>
-      <input type="number" class="stepper__input ${inputClass}" value="${value}"${target === 'rpe' ? ' placeholder="RPE"' : ''} min="${min}"${maxAttr} step="${step}" aria-label="${label}"${disabled ? ' disabled' : ''}>
+      <input type="number" class="stepper__input ${inputClass}" value="${value}"${target === 'rpe' ? ' placeholder="RPE"' : target === 'reps' ? ' placeholder="Wdh"' : ''} min="${min}"${maxAttr} step="${step}" aria-label="${label}"${disabled ? ' disabled' : ''}>
       <button type="button" class="stepper__btn stepper-inc" data-target="${target}" data-step="${step}" aria-label="Mehr"${disabled ? ' disabled' : ''}>+</button>
     </div>
   `;
@@ -620,8 +620,8 @@ function bindFormEvents(workout) {
     const noteBtn = e.target.closest('.set-note-btn');
     if (noteBtn) {
       e.stopPropagation();
-      if (window.haptic) window.haptic.trigger(40);
       handleNoteClick(noteBtn);
+      if (window.haptic) window.haptic.trigger(40);
       return;
     }
 
@@ -944,12 +944,15 @@ function handleStepperClick(btn) {
       ? Math.min(current + step, max)
       : Math.max(current - step, min);
   }
+  // No reps entered is an empty field, like RPE, not a 0 to delete first
+  if (btn.dataset.target === 'reps' && input.value === '0') input.value = '';
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function clampNumberInput(input) {
   if (!input.classList || !input.classList.contains('stepper__input')) return;
-  if (input.classList.contains('set-rpe') && input.value === '') return;
+  if ((input.classList.contains('set-rpe') || input.classList.contains('set-reps')) && input.value === '') return;
+  if (input.classList.contains('set-reps') && parseInt(input.value) <= 0) { input.value = ''; return; }
   let val = parseInt(input.value);
   if (isNaN(val)) val = 0;
   const min = input.min !== '' ? parseInt(input.min) : -Infinity;

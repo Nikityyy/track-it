@@ -1,4 +1,4 @@
-/*! ios-vibrator-pro-max 3.0.3 | ISC License | (c) Sam Denty | https://github.com/samdenty/ios-vibrator-pro-max | bundled from the npm package for static hosting; five small patches, marked "Track It! patch" */
+/*! ios-vibrator-pro-max 3.0.3 | ISC License | (c) Sam Denty | https://github.com/samdenty/ios-vibrator-pro-max | bundled from the npm package for static hosting; six small patches, marked "Track It! patch" */
 (() => {
   // x/package/dist/utils/supported-versions.js
   function getSafariVersion() {
@@ -37,7 +37,12 @@
       }
       mergedStyles.push(...styles);
     }
-    element.setAttribute("style", mergedStyles.map((style2) => `${style2} !important`).join("; "));
+    // Track It! patch (6/6): rewriting an unchanged style still restyles the
+    // page; this runs for every overlay every 500ms and on focus changes
+    const style = mergedStyles.map((style2) => `${style2} !important`).join("; ");
+    if (element.getAttribute("style") !== style) {
+      element.setAttribute("style", style);
+    }
   }
   function updateStyles() {
     pendingUpdate = false;
@@ -376,7 +381,7 @@
       openBackgroundPopup();
     }
   }
-  // Track It! patch (4/5): every tap and keystroke started another copy of
+  // Track It! patch (4/6): every tap and keystroke started another copy of
   // this endless loop, so after a workout thousands of timers fired each
   // second. One loop does the same job.
   var grantLoopRunning = false;
@@ -648,7 +653,7 @@
     };
   }
   var lastActiveTrigger = typeof document !== "undefined" ? document.activeElement : null;
-  // Track It! patch (4/5): was a 0ms interval (about 250 runs a second)
+  // Track It! patch (4/6): was a 0ms interval (about 250 runs a second)
   setInterval(() => {
     const activeElement = typeof document !== "undefined" ? document.activeElement : null;
     if (activeElement === lastActiveTrigger) {
@@ -709,6 +714,12 @@
       relatedTarget: event.relatedTarget
     });
   }
+  // Track It! patch (6/6): the element under the finger, ignoring the tap
+  // overlays. Hiding all overlays to ask (as before) re-laid out the whole page
+  // several times per tap, which delayed whatever the tap opened.
+  function elementBelowOverlays(x, y) {
+    return document.elementsFromPoint(x, y).find((el) => !triggersRoot.contains(el));
+  }
   function forwardEvents(element) {
     const trigger = clickableTriggers.get(element);
     const isInputRange = isInputRangeElement(element);
@@ -722,10 +733,7 @@
       if (isInputRange || clientX == null || clientY == null) {
         return element;
       }
-      triggersRoot.style.display = "none";
-      const target = document.elementFromPoint(clientX, clientY);
-      triggersRoot.style.display = "block";
-      return target ?? element;
+      return elementBelowOverlays(clientX, clientY) ?? element;
     };
     const onPointerEvent = (event) => {
       pointerTarget ??= getTarget(event.clientX, event.clientY);
@@ -1027,7 +1035,7 @@
     if (isNativeMovableElement(event.target)) {
       return;
     }
-    // Track It! patch (3/5): a real tap that already reached a control (for
+    // Track It! patch (3/6): a real tap that already reached a control (for
     // example through its enlarged hit area, outside its overlay) has been
     // handled once; re-dispatching a copy here made it count twice.
     if (!ignoreRootClick && event.isTrusted && event.target.closest &&
@@ -1050,7 +1058,7 @@
     }
     event.preventDefault();
   });
-  // Track It! patch (5/5): overlays sit above everything. Behind an open
+  // Track It! patch (5/6): overlays sit above everything. Behind an open
   // dialog (the page is made inert) they covered the dialog's text field, and
   // while typing they made every keystroke re-lay out one overlay per button.
   // Hide them in both cases; taps then reach the real element directly.
@@ -1074,7 +1082,7 @@
     new MutationObserver(() => updateStyles()).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["inert"] });
   }
   function handleClickable(element, force = false) {
-    // Track It! patch (1/5): no overlay on text entry fields. A tap routed
+    // Track It! patch (1/6): no overlay on text entry fields. A tap routed
     // through the overlay focuses the field with the caret at the start.
     if (!force && element.matches && element.matches('textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"])')) {
       return;
@@ -1103,18 +1111,17 @@
       if (isInputRange && event.target === trigger.input) {
         return;
       }
-      // Track It! patch (2/5): overlays sit at the top z-index, above modals
+      // Track It! patch (2/6): overlays sit at the top z-index, above modals
       // and fixed bars too. Remember what is really under the finger when it
       // is not this overlay's element, and send the tap there instead.
-      triggersRoot.style.display = "none";
-      const realTarget = document.elementFromPoint(event.clientX, event.clientY);
-      triggersRoot.style.display = "";
+      const stack = document.elementsFromPoint(event.clientX, event.clientY);
+      const realTarget = stack.find((el) => !triggersRoot.contains(el)) ?? null;
       misdirectedTarget = realTarget && realTarget !== element && !element.contains(realTarget) ? realTarget : null;
-      stopPointerEvents = true;
-      updateStyles2();
-      const touchedElement = document.elementFromPoint(event.clientX, event.clientY);
-      if (touchedElement === element) {
-        stopPointerEvents = false;
+      // What the finger reaches without this overlay; only switch its
+      // pointer events off (a style change, costly) when that is not the element
+      const touchedElement = stack.find((el) => el !== trigger.label && !trigger.label.contains(el));
+      if (touchedElement !== element) {
+        stopPointerEvents = true;
         updateStyles2();
       }
     }
@@ -1366,7 +1373,13 @@
       if (ignoreMutation) {
         return;
       }
-      raf ??= requestAnimationFrame(updateBodyStyles);
+      // Track It! patch (6/6): re-reading every body style (and swapping the
+      // stylesheet, which restyles the whole page) ran before the next frame
+      // after any change, e.g. a dialog opening. Only do it when the body's
+      // own attributes or a stylesheet changed.
+      if (mutations.some(affectsBodyStyles)) {
+        raf ??= requestAnimationFrame(updateBodyStyles);
+      }
       ignoreMutation = true;
       for (const mutation of mutations) {
         if (mutation.type === "characterData") {
@@ -1393,6 +1406,19 @@
       }
       ignoreMutation = false;
     });
+    function affectsBodyStyles(mutation) {
+      if (mutation.target === rootTrigger.label && mutation.type === "attributes") {
+        return true;
+      }
+      if (mutation.type === "characterData") {
+        return mutation.target.parentNode?.nodeName === "STYLE";
+      }
+      return [...mutation.addedNodes, ...mutation.removedNodes].some((node) => node.nodeName === "STYLE" || node.nodeName === "LINK");
+    }
+    // The theme lives on <html>; the body's colours follow it
+    new MutationObserver(() => {
+      raf ??= requestAnimationFrame(updateBodyStyles);
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "style"] });
     observer.observe(rootTrigger.label, {
       childList: true,
       subtree: true,

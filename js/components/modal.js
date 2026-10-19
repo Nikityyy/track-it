@@ -42,7 +42,8 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
   document.body.appendChild(overlay);
   setPageBehindModal(true);
   const stopFollowingViewport = followVisualViewport(overlay);
-  requestAnimationFrame(() => overlay.classList.add('modal-overlay--visible'));
+  // On screen in the very first frame, together with the tap's vibration
+  overlay.classList.add('modal-overlay--visible');
 
   let closed = false;
   const close = () => {
@@ -148,7 +149,8 @@ function followVisualViewport(overlay) {
     overlay.style.height = `${vv.height}px`;
     overlay.style.bottom = 'auto';
   };
-  fit();
+  // Measuring forces a layout; do it once the first frame is on screen
+  requestAnimationFrame(() => setTimeout(fit));
   vv.addEventListener('resize', fit);
   vv.addEventListener('scroll', fit);
   return () => {
