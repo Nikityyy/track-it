@@ -59,11 +59,22 @@ console.log('✓ Index groups sessions');
 
 // ── 2. Suggestions ──
 const names = (q, opts = {}) => context.suggestExercises(index, q, opts).map(i => i.name);
-assert.equal(names('ba')[0], 'Bankdrücken', 'prefix match ranks first');
+assert.equal(names('ba')[0], 'Bankdrücken', 'most done first');
 assert.ok(names('ba').includes('Schrägbank KH'), 'word-inside match is still offered');
 assert.ok(!names('ba', { exclude: ['Bankdrücken 72.5kg'] }).includes('Bankdrücken'), 'exercises already in the workout are left out');
 assert.equal(names('bankdrucken').length, 0, 'a fully typed name is not suggested again');
-assert.equal(names('', { type: 'Pull' })[0], 'Klimmzüge', 'empty field: exercises of the selected type first');
+assert.equal(names('')[0], 'Bankdrücken', 'empty field: most done first');
+
+const sorted = context.buildExerciseIndex([
+  { workoutId: 'e1', type: 'Push', name: 'Push', date: day(2), exercises: [{ name: 'Dips', mode: 'normal', sets: [S('Satz 1', 8, 8)] }, { name: 'Liegestütze', mode: 'normal', sets: [S('Satz 1', 8, 8)] }] },
+  { workoutId: 'e2', type: 'Push', name: 'Push', date: day(5), exercises: [{ name: 'Dips', mode: 'normal', sets: [S('Satz 1', 8, 8)] }, { name: 'Liegestütze', mode: 'normal', sets: [S('Satz 1', 8, 8)] }] },
+  { workoutId: 'e3', type: 'Push', name: 'Push', date: day(9), exercises: [{ name: 'Dips', mode: 'normal', sets: [S('Satz 1', 8, 8)] }, { name: 'Pike Push-ups', mode: 'normal', sets: [S('Satz 1', 8, 8)] }] },
+  { workoutId: 'e4', type: 'Push', name: 'Push', date: day(1), exercises: [{ name: 'Seilspringen', mode: 'normal', sets: [S('Satz 1', 8, 8)] }] },
+  { workoutId: 'e5', type: 'Beine', name: 'Beine', date: day(45), exercises: [{ name: 'Kniebeugen', mode: 'normal', sets: [S('Satz 1', 8, 8)] }, { name: 'Kniebeugen 80kg', mode: 'normal', sets: [S('Satz 1', 8, 8)] }, { name: 'Kniebeugen 85kg', mode: 'normal', sets: [S('Satz 1', 8, 8)] }] }
+]);
+const sortedNames = context.suggestExercises(sorted, '').map(i => i.name);
+assert.equal(JSON.stringify(sortedNames), JSON.stringify(['Dips', 'Liegestütze', 'Seilspringen', 'Pike Push-ups']), 'most done first, then the most recent');
+assert.ok(!context.suggestExercises(sorted, 'knie').length, 'not done for over a month: not suggested, however often it was done before');
 assert.equal(context.highlightMatch('Bankdrücken 72.5kg', 'ba'), '<mark>Ba</mark>nkdrücken 72.5kg');
 console.log('✓ Suggestions rank and filter');
 

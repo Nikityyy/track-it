@@ -89,38 +89,25 @@ function buildExerciseIndex(workouts) {
     return map;
 }
 
-/* Rank names for the suggestion list: prefix matches before word matches
- * before anywhere matches; ties go to the selected workout type, then to how
- * often and how recently the exercise was done. */
+/* Names for the suggestion list: everything that matches what is typed and
+ * was done within the last month, most often done first (ties: most recent). */
 function suggestExercises(index, query, options = {}) {
     const q = normalizeForSearch(query);
-    const type = options.type || '';
     const exclude = new Set((options.exclude || []).map(exerciseKey));
     const limit = options.limit || 5;
-    const now = Date.now();
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 1);
 
-    const scored = [];
+    const matches = [];
     for (const item of index.values()) {
         if (exclude.has(item.key)) continue;
-        let match = 0;
-        if (!q) {
-            match = 1;
-        } else if (item.key.startsWith(q)) {
-            match = 3;
-        } else if (item.key.split(' ').some(word => word.startsWith(q))) {
-            match = 2;
-        } else if (item.key.includes(q)) {
-            match = 1;
-        }
-        if (!match) continue;
+        if (!item.lastDate || new Date(item.lastDate) < cutoff) continue;
+        if (q && !item.key.includes(q)) continue;
         if (q && item.key === q) continue; // already typed in full
-        const days = item.lastDate ? (now - new Date(item.lastDate).getTime()) / 86400000 : 999;
-        const recency = Math.max(0, 30 - days) / 30;
-        const typeBoost = type && item.types[type] ? 1 : 0;
-        scored.push({ item, score: match * 100 + typeBoost * 20 + Math.min(item.count, 20) + recency * 10 });
+        matches.push(item);
     }
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, limit).map(s => s.item);
+    matches.sort((a, b) => b.count - a.count || new Date(b.lastDate) - new Date(a.lastDate));
+    return matches.slice(0, limit);
 }
 
 /* Mark the matched part of a name for the suggestion list (HTML-escaped). */

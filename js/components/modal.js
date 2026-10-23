@@ -48,10 +48,20 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
   // On screen in the very first frame, together with the tap's vibration
   overlay.classList.add('modal-overlay--visible');
 
+  // The page behind takes no focus while the dialog is open (`inert` used to
+  // guarantee that): anything that tries is sent back, so the keyboard stays
+  const keepFocusInside = (e) => {
+    if (overlay.contains(e.target)) return;
+    const back = (focus && focus.isConnected ? focus : overlay.querySelector(danger ? '.modal-cancel' : '.modal-confirm'));
+    if (back) back.focus({ preventScroll: true });
+  };
+  document.addEventListener('focusin', keepFocusInside, true);
+
   let closed = false;
   const close = () => {
     if (closed) return;
     closed = true;
+    document.removeEventListener('focusin', keepFocusInside, true);
     stopFollowingViewport();
     // The fading dialog no longer takes taps; the page does again right away
     overlay.classList.add('modal-overlay--closing');
@@ -133,12 +143,21 @@ function showModal({ title, body, bodyText, bodyHtml, confirmText, cancelText, o
   }
 }
 
-/* While a dialog is open the page behind it neither scrolls nor takes taps
- * or focus (`inert` also hides the haptics library's tap overlays there). */
+/* While a dialog is open the page behind it neither scrolls nor is read out;
+ * the dialog's backdrop covers it, so it takes no taps. (`inert` did the same,
+ * but restyled the whole page, which made opening a dialog wait on it.) The
+ * haptics library's tap overlays sit above the backdrop, so they are told to
+ * step aside. */
 function setPageBehindModal(open) {
   const app = document.getElementById('app');
-  if (app) app.inert = open;
+  if (app) {
+    // Nothing behind the dialog keeps focus (what `inert` did too)
+    if (open && app.contains(document.activeElement)) document.activeElement.blur();
+    if (open) app.setAttribute('aria-hidden', 'true');
+    else app.removeAttribute('aria-hidden');
+  }
   document.documentElement.classList.toggle('modal-open', open);
+  if (window.syncHapticOverlays) window.syncHapticOverlays();
 }
 
 /* Keep the dialog inside the part of the screen that is visible. When the

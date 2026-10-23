@@ -1152,9 +1152,9 @@ select option {
     padding: 10px 12px;
 }
 
-/* Edit and repeat lead; share and copy pair up; delete sits apart at the end */
+/* Edit and copy lead; share and repeat pair up; delete sits apart at the end */
 .detail-actions #btn-edit-workout,
-.detail-actions #btn-repeat-workout {
+.detail-actions #btn-copy-workout {
     order: -1;
     min-height: 52px;
     font-size: 16px;

@@ -150,11 +150,11 @@ async function renderWorkoutDetailPage(params) {
         <button class="btn btn-ghost" id="btn-edit-workout">
           ${icon('edit', 16)} Bearbeiten
         </button>
-        <button class="btn btn-ghost" id="btn-repeat-workout">
-          ${icon('repeat', 16)} Wiederholen
-        </button>
         <button class="btn btn-ghost" id="btn-copy-workout">
           ${icon('copy', 16)} Kopieren
+        </button>
+        <button class="btn btn-ghost" id="btn-repeat-workout">
+          ${icon('repeat', 16)} Wiederholen
         </button>
         <button class="btn btn-ghost btn-danger-ghost" id="btn-delete-workout">
           ${icon('trash', 16)} Löschen

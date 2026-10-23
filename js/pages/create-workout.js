@@ -121,8 +121,8 @@ async function renderCreateWorkoutPage(params) {
 }
 
 /* ── Exercise name suggestions ──
- * A small list under the focused name field: likely exercises before you
- * type, best matches while you type. Tapping one fills the name as you last
+ * A small list under the focused name field: what you did most in the last
+ * month, narrowed down as you type. Tapping one fills the name as you last
  * wrote it (with its weight). */
 let _exerciseIndex = null;
 let _suggestFor = null;
@@ -136,7 +136,6 @@ function showNameSuggestions(input) {
   const others = Array.from(document.querySelectorAll('.exercise-name, .finisher-entry-name'))
     .filter(el => el !== input).map(el => el.value).filter(Boolean);
   const items = suggestExercises(_exerciseIndex, input.value, {
-    type: document.getElementById('workout-type')?.value || '',
     exclude: others,
     limit: 5
   });

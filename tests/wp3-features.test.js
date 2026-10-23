@@ -28,6 +28,8 @@ const modalContext = {
     documentElement: { classList: { toggle: () => {} } },
     activeElement: null,
     dispatchEvent: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
     createElement: () => {
       const el = {
         className: '',

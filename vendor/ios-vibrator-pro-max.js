@@ -1,4 +1,4 @@
-/*! ios-vibrator-pro-max 3.0.3 | ISC License | (c) Sam Denty | https://github.com/samdenty/ios-vibrator-pro-max | bundled from the npm package for static hosting; six small patches, marked "Track It! patch" */
+/*! ios-vibrator-pro-max 3.0.3 | ISC License | (c) Sam Denty | https://github.com/samdenty/ios-vibrator-pro-max | bundled from the npm package for static hosting; ten small patches, marked "Track It! patch" */
 (() => {
   // x/package/dist/utils/supported-versions.js
   function getSafariVersion() {
@@ -47,6 +47,11 @@
   function updateStyles() {
     pendingUpdate = false;
     for (const [element, callbacks] of elementCallbacks) {
+      // Track It! patch (8/8): overlays inside a hidden container are
+      // invisible; restyling hundreds of them was most of the cost of a tap
+      if (element.parentNode?.style.display === "none") {
+        continue;
+      }
       applyStyles(element, callbacks);
     }
   }
@@ -991,9 +996,14 @@
 
   // x/package/dist/methods/click-passthrough/clickable.js
   var triggersRoot = typeof document !== "undefined" ? document.createElement("div") : null;
+  // Track It! patch (8/8): overlays of the page live in their own container,
+  // so "page is inert" or "typing" hides them all with one style change
+  // instead of one per overlay (hundreds on a long workout)
+  var pageTriggersRoot = typeof document !== "undefined" ? document.createElement("div") : null;
   if (triggersRoot && hiddenTrigger) {
     triggersRoot.setAttribute("for", "ios-vibrator-pro-max-content-triggers");
     triggersRoot.appendChild(hiddenTrigger.label);
+    triggersRoot.appendChild(pageTriggersRoot);
     ignoredElements.add(triggersRoot);
   }
   var CLICKABLE = /* @__PURE__ */ new Set([
@@ -1064,22 +1074,46 @@
   // Hide them in both cases; taps then reach the real element directly.
   var TEXT_ENTRY = 'textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"])';
   function isOverlaySuspended(element) {
-    if (element.closest && element.closest("[inert]")) {
+    if (element.closest && element.closest("[inert], [aria-hidden='true']")) {
       return true;
     }
     const active = document.activeElement;
     return !!(active && active !== element && active.matches && active.matches(TEXT_ENTRY));
   }
+  // Hide or show a whole container of overlays; showing them also refreshes
+  // their look, which may have changed while they were hidden
+  function setOverlaysHidden(container, hidden) {
+    if (!container || (container.style.display === "none") === hidden) {
+      return;
+    }
+    container.style.display = hidden ? "none" : "";
+    if (!hidden) {
+      updateStyles();
+    }
+  }
+  function syncOverlaySuspension() {
+    const active = document.activeElement;
+    const typing = !!(active && active.matches && active.matches(TEXT_ENTRY));
+    setOverlaysHidden(pageTriggersRoot, typing || !!document.querySelector("#app[inert], #app[aria-hidden='true']"));
+    setOverlaysHidden(triggersRoot, typing);
+  }
+  if (typeof window !== "undefined") {
+    // Track It! patch (10/10): the page calls this the moment it hides itself
+    // behind a dialog. The observer below only runs after the current script,
+    // by which time the dialog has already focused its field and laid out the
+    // page with every overlay still in it.
+    window.syncHapticOverlays = syncOverlaySuspension;
+  }
   if (typeof document !== "undefined") {
     document.addEventListener("focusin", (event) => {
       if (event.target.matches && event.target.matches(TEXT_ENTRY)) {
-        updateStyles();
+        syncOverlaySuspension();
       }
     }, true);
     // Bring them back only after the tap that moved focus away has ended;
     // returning mid-tap, they would catch its end and lose the click
-    document.addEventListener("focusout", () => setTimeout(updateStyles, 350), true);
-    new MutationObserver(() => updateStyles()).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["inert"] });
+    document.addEventListener("focusout", () => setTimeout(syncOverlaySuspension, 350), true);
+    new MutationObserver(syncOverlaySuspension).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["inert", "aria-hidden"] });
   }
   function handleClickable(element, force = false) {
     // Track It! patch (1/6): no overlay on text entry fields. A tap routed
@@ -1169,11 +1203,11 @@
     }
     const computedStyle = getComputedStyle(element);
     const existingAnchorName = computedStyle.getPropertyValue("anchor-name");
+    // Track It! patch (9/9): overlays now come and go as the element scrolls
+    // in and out of reach; give the element its own anchor name back each time
+    const inlineAnchorName = element.style.getPropertyValue("anchor-name");
     element.style.setProperty("anchor-name", `${anchorName}${existingAnchorName !== "none" ? `, ${existingAnchorName}` : ""}`);
     const [updateStyles2, disposeStyles] = registerStyleUpdater(trigger.label, () => {
-      if (isOverlaySuspended(element)) {
-        return ["all: unset", "display: none"];
-      }
       const computedStyle2 = getComputedStyle(element);
       const highlightColor = computedStyle2.getPropertyValue("-webkit-tap-highlight-color");
       return [
@@ -1193,7 +1227,7 @@
     const triggers = /* @__PURE__ */ new Set();
     triggers.add(trigger.label);
     clickableTriggers.set(element, trigger);
-    triggersRoot.appendChild(trigger.label);
+    (element.closest("#app") ? pageTriggersRoot : triggersRoot).appendChild(trigger.label);
     trigger.label.addEventListener("pointerdown", onPointerDown, true);
     trigger.label.addEventListener("pointerup", onPointerUp, true);
     trigger.label.addEventListener("click", onClick, true);
@@ -1204,6 +1238,11 @@
       trigger.label.removeEventListener("click", onClick);
       clickableTriggers.delete(element);
       trigger.label.remove();
+      if (inlineAnchorName) {
+        element.style.setProperty("anchor-name", inlineAnchorName);
+      } else {
+        element.style.removeProperty("anchor-name");
+      }
     };
   }
   rootTrigger?.label.addEventListener("click", (event) => {
@@ -1236,6 +1275,28 @@
     debugMode = enabled;
     updateStyles();
   }
+  // Track It! patch (9/9): a tap overlay is anchor-positioned, and every
+  // layout of the page re-resolves all of them: about 400 on a long workout
+  // made each layout take ~4x longer than the page itself, several times per
+  // tap, so buttons answered late. Only controls within reach of the screen
+  // get an overlay; the rest get theirs as they scroll near.
+  var overlayReach = typeof IntersectionObserver !== "undefined" ? new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const lazy = lazyOverlays.get(entry.target);
+      if (!lazy) {
+        continue;
+      }
+      if (entry.isIntersecting) {
+        lazy.attach();
+      } else {
+        lazy.detach();
+      }
+    }
+  }, { rootMargin: "300px 0px" }) : null;
+  var lazyOverlays = /* @__PURE__ */ new WeakMap();
+  function wantsLazyOverlay(element) {
+    return !!overlayReach && !isInputRangeElement(element) && !(element.matches && element.matches(TEXT_ENTRY)) && isClickableElement(element);
+  }
   function handleAddElement(element) {
     if (elementDisposers.has(element)) {
       return () => {
@@ -1246,17 +1307,45 @@
         handleAddElement(child);
       }
     }
-    const disposers = [
-      handleClickable(element),
-      handleInputable(element),
-      forwardEvents(element),
-      handleMovable(element)
-    ];
-    elementDisposers.set(element, () => {
-      disposers.reverse();
-      for (const dispose of disposers) {
+    let disposers = [];
+    let attached = false;
+    const attach = () => {
+      if (attached) {
+        return;
+      }
+      attached = true;
+      disposers = [
+        handleClickable(element),
+        handleInputable(element),
+        forwardEvents(element),
+        handleMovable(element)
+      ];
+    };
+    const detach = () => {
+      if (!attached) {
+        return;
+      }
+      attached = false;
+      const current = disposers;
+      disposers = [];
+      current.reverse();
+      for (const dispose of current) {
         dispose?.();
       }
+    };
+    const lazy = wantsLazyOverlay(element);
+    if (lazy) {
+      lazyOverlays.set(element, { attach, detach });
+      overlayReach.observe(element);
+    } else {
+      attach();
+    }
+    elementDisposers.set(element, () => {
+      if (lazy) {
+        overlayReach.unobserve(element);
+        lazyOverlays.delete(element);
+      }
+      detach();
     });
     return () => {
       handleRemoveElement(element);
@@ -1291,6 +1380,7 @@
     rootTrigger.input.id = "ios-vibrator-pro-max";
     rootTrigger.input.name = "ios-vibrator-pro-max";
   }
+  var SIZE_STYLE = /^(min-|max-)?(width|height|inline-size|block-size)$|-origin$/;
   async function initPolyfill() {
     window.addEventListener("click", authorizeVibrations);
     window.addEventListener("touchend", authorizeVibrations);
@@ -1320,6 +1410,15 @@
       const rootTriggerStyles = getComputedStyle(rootTrigger.label);
       let styles = "";
       for (const style2 of bodyStyles) {
+        // Track It! patch (7/7): the body's computed size is a snapshot of
+        // its content at this moment. Frozen onto the wrapper it kept the
+        // page at that height after the content grew or shrank, so the page
+        // scrolled into empty space (or stopped short), and, being
+        // overflow: auto at that fixed height, became a second scrollbar
+        // inside the page. Sizes stay automatic.
+        if (SIZE_STYLE.test(style2)) {
+          continue;
+        }
         if (rootTriggerStyles.getPropertyValue(style2) === bodyStyles.getPropertyValue(style2)) {
           continue;
         }

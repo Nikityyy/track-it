@@ -87,6 +87,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (shouldRender && window.lucide) {
             window.lucide.createIcons();
+            // Rendered icons keep data-lucide, and createIcons() renders every
+            // element that has it: each new icon rebuilt every icon on the page
+            document.querySelectorAll('svg[data-lucide]').forEach(svg => svg.removeAttribute('data-lucide'));
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
