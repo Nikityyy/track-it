@@ -60,12 +60,12 @@ async function renderHomePage() {
     const savedLabel = savedAt && !Number.isNaN(savedAt.getTime())
       ? savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
       : '';
-    const restTimer = typeof readPersistedRestTimer === 'function' ? readPersistedRestTimer() : null;
+    const restTimer = restTimerBelongsToWorkout(draft.restTimer, dw) ? draft.restTimer : null;
     draftBanner = `
       <section class="draft-banner" id="draft-banner" aria-label="Nicht gespeichertes Workout">
         <div class="draft-banner-head">
           <span class="draft-banner-title">${draft.isEdit ? 'Bearbeitung nicht gespeichert' : 'Workout nicht gespeichert'}${savedLabel ? ` · ${savedLabel}` : ''}</span>
-          ${restTimer ? `<span class="draft-banner-clock" data-started-at="${restTimer.startedAt}" data-elapsed-before="${Number(restTimer.elapsedBefore) || 0}">Pause <b>–</b></span>` : ''}
+          ${restTimer ? `<span class="draft-banner-clock" data-started-at="${restTimer.startedAt}" data-elapsed-before="${Number(restTimer.elapsedBefore) || 0}" data-seen-at="${Number(restTimer.seenAt) || ''}">Pause <b>–</b></span>` : ''}
         </div>
         <span class="draft-banner-name">${escapeHtml(dw.name || 'Unbenanntes Workout')}</span>
         <span class="draft-banner-sub">${dExercises} ${dExercises === 1 ? 'Übung' : 'Übungen'} · ${dSets} ${dSets === 1 ? 'Satz' : 'Sätze'}</span>
@@ -354,8 +354,7 @@ async function renderHomePage() {
   if (clock) {
     const tickClock = () => {
       if (!clock.isConnected) { clearInterval(clockTimer); return; }
-      const elapsed = (Number(clock.dataset.elapsedBefore) || 0) +
-        Math.max(0, Math.floor((Date.now() - Number(clock.dataset.startedAt)) / 1000));
+      const elapsed = restTimerElapsed(Number(clock.dataset.elapsedBefore) || 0, Number(clock.dataset.startedAt), restTimerClockAt({ seenAt: Number(clock.dataset.seenAt) || undefined }));
       const m = Math.floor(elapsed / 60);
       clock.querySelector('b').textContent = `${m}:${String(elapsed % 60).padStart(2, '0')}`;
     };

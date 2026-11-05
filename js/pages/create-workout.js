@@ -97,17 +97,28 @@ async function renderCreateWorkoutPage(params) {
   // The user may have navigated away while we were loading
   if (token !== _editorRenderToken) return;
 
+  // A running rest comes back with the draft it was written in
+  let restTimer = null;
+  if (fromDraft && draft) {
+    restTimer = draft.restTimer !== undefined ? draft.restTimer : takeLegacyRestTimer();
+  }
+
   renderWorkoutForm(workout, types, isEdit, {
     editId,
     resetHistory: true,
-    formHistory: fromDraft && draft ? draft.formHistory : null
+    formHistory: fromDraft && draft ? draft.formHistory : null,
+    restTimer
   });
 
   // A draft is only worth keeping once the form differs from what was opened.
   // Anything resumed from a draft already is one.
   const opened = collectWorkoutFromForm();
-  _draftBaselineSnapshot = fromDraft || !opened ? null : comparableWorkoutSnapshot(opened);
-  _lastDraftSnapshot = fromDraft && opened ? comparableWorkoutSnapshot(opened) : null;
+  _draftBaselineSnapshot = fromDraft || !opened ? null : draftSnapshot(opened);
+  // A resumed draft is not what is on screen: a rest timer that kept running
+  // while the app was away has moved on since the draft was written. Starting
+  // from nothing makes the next save write what is really there, otherwise a
+  // pause that ends up equal to the opened state never reaches the draft.
+  _lastDraftSnapshot = null;
   window._hasUnsavedChanges = fromDraft;
 
   startAutoDraft();
@@ -258,13 +269,19 @@ function scheduleDraftSave() {
   _draftSaveTimer = setTimeout(saveCurrentDraft, 400);
 }
 
+/* What a draft is compared by: the workout and the rest timer running in it. */
+function draftSnapshot(workout) {
+  const timer = getRestTimerState();
+  return comparableWorkoutSnapshot(workout) + (timer ? `|${timer.setId}:${timer.startedAt}:${timer.elapsedBefore}` : '');
+}
+
 function saveCurrentDraft() {
   clearTimeout(_draftSaveTimer);
   _draftSaveTimer = null;
   if (_savedSuccessfully) return;
   const workout = collectWorkoutFromForm();
   if (!workout) return;
-  const snapshot = comparableWorkoutSnapshot(workout);
+  const snapshot = draftSnapshot(workout);
 
   if (_draftBaselineSnapshot !== null && snapshot === _draftBaselineSnapshot) {
     // Back to exactly what was opened: nothing to keep
@@ -279,7 +296,7 @@ function saveCurrentDraft() {
 
   _lastDraftSnapshot = snapshot;
   window._hasUnsavedChanges = true;
-  saveDraft({ ...getDraftMeta(), workout, formHistory: getFormHistoryState() });
+  saveDraft({ ...getDraftMeta(), workout, restTimer: getRestTimerState(), formHistory: getFormHistoryState() });
 }
 
 function stopAutoDraft(shouldSave = true) {
@@ -393,8 +410,9 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
   if (options.resetHistory) initFormHistory(workout, options.formHistory);
   updateExerciseIndices();
   updateSetDeleteStates();
+  updateLastSetPause();
   updateUndoRedoButtons();
-  if (typeof resumePersistedRestTimer === 'function') resumePersistedRestTimer();
+  if (typeof resumeRestTimer === 'function') resumeRestTimer(options.restTimer !== undefined ? options.restTimer : getRestTimerState());
 }
 
 function renderExerciseCard(exercise, index, totalCount = 1) {
@@ -776,6 +794,7 @@ function bindFormEvents(workout) {
   document.getElementById('btn-save-workout').addEventListener('click', async () => {
     pauseActiveRestTimer(false);
     const w = collectWorkoutFromForm();
+    if (w && !getLastSetPause()) clearEndOfWorkoutPause(w);
     if (!w) return;
     if (!w.name.trim()) {
       showToast('Bitte gib einen Namen ein');
@@ -902,6 +921,34 @@ function bindFinisherEvents() {
   });
 }
 
+/* The last set of the workout has no pause option (unless the setting allows
+ * it): the timer button and the pause field are off. With a normal finisher
+ * its last set is the end; with AMRAP/EMOM or none, the last exercise's. */
+function findLastSetRow() {
+  const finisherOn = document.getElementById('finisher-toggle')?.checked && document.querySelector('.finisher-block');
+  const scope = finisherOn
+    ? document.querySelectorAll('.finisher-entry .set-row')
+    : document.querySelectorAll('#exercises-container .set-row');
+  return scope.length ? scope[scope.length - 1] : null;
+}
+
+function updateLastSetPause() {
+  const last = getLastSetPause() ? null : findLastSetRow();
+  document.querySelectorAll('.set-row.no-pause').forEach(row => {
+    if (row === last) return;
+    row.classList.remove('no-pause');
+    const skipped = row.classList.contains('skipped');
+    row.querySelectorAll('.stepper-break button, .stepper-break input, .rest-timer-btn').forEach(el => { el.disabled = skipped; });
+  });
+  if (!last) return;
+  if (!last.classList.contains('no-pause')) {
+    // A rest that was running here ends: there is nothing after this set
+    if (typeof _activeRestTimer !== 'undefined' && _activeRestTimer && _activeRestTimer.row === last) pauseActiveRestTimer(false);
+    last.classList.add('no-pause');
+  }
+  last.querySelectorAll('.stepper-break button, .stepper-break input, .rest-timer-btn').forEach(el => { el.disabled = true; });
+}
+
 function updateExerciseIndices() {
   const cards = document.querySelectorAll('#exercises-container .exercise-card');
   const total = cards.length;
@@ -998,6 +1045,7 @@ function handleSkipToggle(skipBtn) {
       el.disabled = isNowSkipped;
     }
   });
+  updateLastSetPause();
 }
 
 function confirmRemove(title, bodyText, onConfirm) {
@@ -1014,6 +1062,11 @@ function confirmRemove(title, bodyText, onConfirm) {
 
 function setMode(card, newMode) {
   if (window.haptic) window.haptic.trigger('selection');
+  // The sets are rebuilt below; a rest running on one of them ends here with
+  // the time it has, instead of ticking on for a set that no longer exists
+  if (typeof _activeRestTimer !== 'undefined' && _activeRestTimer && card.contains(_activeRestTimer.row)) {
+    pauseActiveRestTimer(false);
+  }
   card.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('btn-primary', b.dataset.mode === newMode);
     b.classList.toggle('btn-ghost', b.dataset.mode !== newMode);

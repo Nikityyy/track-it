@@ -162,6 +162,36 @@ function createEmptySet(index, mode, pairIndex) {
     };
 }
 
+/* Setting: may the last set of a workout have a pause? Off by default, since
+ * nothing follows it; a rest timer left running there ended up as its pause. */
+const LAST_SET_PAUSE_KEY = 'trackit-last-set-pause';
+
+function getLastSetPause() {
+    try {
+        return localStorage.getItem(LAST_SET_PAUSE_KEY) === 'on';
+    } catch (e) {
+        return false;
+    }
+}
+
+function setLastSetPause(on) {
+    try { localStorage.setItem(LAST_SET_PAUSE_KEY, on ? 'on' : 'off'); } catch (e) { /* ignore */ }
+}
+
+/* Nothing follows the last set of a workout, so it has no pause. With a
+ * finisher the last set is the finisher's (only a normal finisher has sets);
+ * the last exercise set before a finisher still has its pause. */
+function clearEndOfWorkoutPause(workout) {
+    if (!workout) return workout;
+    const finisher = workout.finisher && workout.finisher.type ? workout.finisher : null;
+    const lists = finisher
+        ? (finisher.entries || []).map(entry => entry.sets)
+        : (workout.exercises || []).map(ex => ex.sets);
+    const last = lists.filter(sets => Array.isArray(sets) && sets.length > 0).pop();
+    if (last) last[last.length - 1].breakSeconds = 0;
+    return workout;
+}
+
 function createEmptyExercise() {
     return {
         exerciseId: uuid(),

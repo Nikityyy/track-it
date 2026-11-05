@@ -1504,6 +1504,12 @@ select option {
     min-width: 36px;
 }
 
+/* The last set of the workout has no pause (setting "Pause beim letzten Satz") */
+.set-row.no-pause .stepper-break,
+.set-row.no-pause .rest-timer-btn {
+    visibility: hidden;
+}
+
 .set-row:last-child {
     border-bottom: none;
 }

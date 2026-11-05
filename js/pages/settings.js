@@ -40,6 +40,15 @@ async function renderSettingsPage() {
         </div>
         <div class="settings-row">
           <div class="settings-info">
+            <span class="settings-label">Pause beim letzten Satz</span>
+            <span class="text-muted text-small">Nach dem letzten Satz eines Workouts kommt nichts mehr, deshalb gibt es dort keine Pause. Einschalten, wenn du sie trotzdem erfassen willst.</span>
+          </div>
+          <label class="toggle-label">
+            <input type="checkbox" id="last-set-pause-toggle" ${getLastSetPause() ? 'checked' : ''}>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div class="settings-info">
             <span class="settings-label">Vibration auf dem iPhone</span>
             <span class="text-muted text-small">Nutzt einen iOS-Trick für spürbares Feedback. Wenn Tippen sich unzuverlässig anfühlt, hier ausschalten.</span>
           </div>
@@ -112,6 +121,12 @@ async function renderSettingsPage() {
     setLrOrder(e.target.value);
     if (window.haptic) window.haptic.trigger(20);
     showToast(e.target.value === 'right' ? 'Rechts zuerst' : 'Links zuerst');
+  });
+
+  document.getElementById('last-set-pause-toggle')?.addEventListener('change', (e) => {
+    setLastSetPause(e.target.checked);
+    if (window.haptic) window.haptic.trigger(20);
+    showToast(e.target.checked ? 'Pause beim letzten Satz an' : 'Keine Pause beim letzten Satz');
   });
 
   document.getElementById('ios-haptics-toggle')?.addEventListener('change', (e) => {

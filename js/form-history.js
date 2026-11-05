@@ -38,6 +38,8 @@ function scheduleHistoryRecord() {
 
 function recordFormHistory() {
   if (_isRestoringHistory) return;
+  // Every structural change (a set added, a finisher toggled) may move the end
+  if (typeof updateLastSetPause === 'function') updateLastSetPause();
   const current = collectWorkoutFromForm();
   if (!current) return;
   const currentSnapshot = comparableWorkoutSnapshot(current);
@@ -139,6 +141,7 @@ function restoreHistoryAt(index) {
   }
 
   _isRestoringHistory = false;
+  if (typeof updateLastSetPause === 'function') updateLastSetPause();
   updateUndoRedoButtons();
   if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 }
