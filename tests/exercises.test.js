@@ -74,9 +74,106 @@ const sorted = context.buildExerciseIndex([
 ]);
 const sortedNames = context.suggestExercises(sorted, '').map(i => i.name);
 assert.equal(JSON.stringify(sortedNames), JSON.stringify(['Dips', 'Liegestütze', 'Seilspringen', 'Pike Push-ups']), 'most done first, then the most recent');
-assert.ok(!context.suggestExercises(sorted, 'knie').length, 'not done for over a month: not suggested, however often it was done before');
+assert.ok(!context.suggestExercises(sorted, '').some(i => i.name === 'Kniebeugen'), 'not done for over a month: hidden when field is empty');
+assert.equal(context.suggestExercises(sorted, 'knie')[0].name, 'Kniebeugen', 'not done for over a month: surfaced when user actively searches');
 assert.equal(context.highlightMatch('Bankdrücken 72.5kg', 'ba'), '<mark>Ba</mark>nkdrücken 72.5kg');
 console.log('✓ Suggestions rank and filter');
+
+// ── 2b. Workout-type prioritization, slot position & search across older history ──
+const splitWorkouts = [
+  { workoutId: 'p1', type: 'Push', name: 'Push', date: day(2), exercises: [
+    { name: 'Bankdrücken 75kg', mode: 'normal', sets: [S('Satz 1', 8, 8)] },
+    { name: 'Schrägbank KH 26kg', mode: 'normal', sets: [S('Satz 1', 10, 8)] },
+    { name: 'Trizepsdrücken 25kg', mode: 'normal', sets: [S('Satz 1', 12, 8)] }
+  ] },
+  { workoutId: 'p2', type: 'Push', name: 'Push', date: day(6), exercises: [
+    { name: 'Bankdrücken 72.5kg', mode: 'normal', sets: [S('Satz 1', 8, 8)] },
+    { name: 'Schrägbank KH 24kg', mode: 'normal', sets: [S('Satz 1', 10, 8)] },
+    { name: 'Trizepsdrücken 25kg', mode: 'normal', sets: [S('Satz 1', 12, 8)] }
+  ] },
+  { workoutId: 'l1', type: 'Pull', name: 'Pull', date: day(1), exercises: [
+    { name: 'Klimmzüge', mode: 'normal', sets: [S('Satz 1', 10, 8)] },
+    { name: 'Rudern Kabel 50kg', mode: 'normal', sets: [S('Satz 1', 10, 8)] }
+  ] },
+  { workoutId: 'l2', type: 'Pull', name: 'Pull', date: day(3), exercises: [
+    { name: 'Klimmzüge', mode: 'normal', sets: [S('Satz 1', 10, 8)] },
+    { name: 'Rudern Kabel 50kg', mode: 'normal', sets: [S('Satz 1', 10, 8)] }
+  ] },
+  { workoutId: 'l3', type: 'Pull', name: 'Pull', date: day(5), exercises: [
+    { name: 'Klimmzüge', mode: 'normal', sets: [S('Satz 1', 10, 8)] },
+    { name: 'Rudern Kabel 45kg', mode: 'normal', sets: [S('Satz 1', 10, 8)] }
+  ] },
+  { workoutId: 'old1', type: 'Push', name: 'Push Alt', date: day(60), exercises: [
+    { name: 'Schulterdrücken 40kg', mode: 'normal', sets: [S('Satz 1', 8, 8)] }
+  ] }
+];
+const splitIndex = context.buildExerciseIndex(splitWorkouts);
+
+// Selecting Push puts Push exercises ahead of more-frequent Pull exercises, and falls back to Pull below
+const pushSlot0 = context.suggestExercises(splitIndex, '', { workoutType: 'Push', position: 0, source: 'exercise', limit: 5 });
+assert.equal(pushSlot0[0].name, 'Bankdrücken', 'slot 0 in Push prefers Push opener');
+assert.equal(pushSlot0[0].matchType, 'type');
+assert.equal(pushSlot0[0].typeCount, 2);
+assert.equal(JSON.stringify(pushSlot0.slice(0, 3).map(i => i.name)), JSON.stringify(['Bankdrücken', 'Schrägbank KH', 'Trizepsdrücken']), 'all Push exercises come before Pull');
+assert.equal(pushSlot0[3].matchType, 'other', 'remaining slots filled with other types');
+assert.ok(!pushSlot0.some(i => i.name === 'Schulterdrücken'), 'older >1 month Push exercise stays hidden when input is empty');
+
+// Slot 2 in Push favors Trizepsdrücken (usually done 3rd) over Bankdrücken (usually done 1st)
+const pushSlot2 = context.suggestExercises(splitIndex, '', { workoutType: 'Push', position: 2, source: 'exercise', limit: 5 });
+assert.equal(pushSlot2[0].name, 'Trizepsdrücken', 'slot 2 prefers exercise typically done 3rd in Push');
+
+// Searching surfaces the >1 month Push exercise and puts Push matches before other types
+const searchOld = context.suggestExercises(splitIndex, 'sch', { workoutType: 'Push', limit: 5 });
+assert.equal(JSON.stringify(searchOld.map(i => i.name)), JSON.stringify(['Schrägbank KH', 'Schulterdrücken']), 'recent Push match ranks first, older Push match surfaces on search');
+assert.equal(searchOld[1].isOlder, true);
+
+// Searching across types still prioritizes active workoutType first
+const searchCross = context.suggestExercises(splitIndex, 'r', { workoutType: 'Push', limit: 5 });
+assert.equal(searchCross[0].matchType, 'type', 'type-matched search result precedes other workout types');
+assert.ok(searchCross.some(i => i.name === 'Rudern Kabel' && i.matchType === 'other'), 'matching exercise from another type still appears below');
+
+// Suggestion age formatting
+const refNow = new Date('2026-06-15T12:00:00Z');
+assert.equal(context.formatSuggestionAge('2026-06-15T08:00:00Z', refNow), 'heute');
+assert.equal(context.formatSuggestionAge('2026-06-14T18:00:00Z', refNow), 'gestern');
+assert.equal(context.formatSuggestionAge('2026-06-10T10:00:00Z', refNow), 'vor 5 T.');
+assert.equal(context.formatSuggestionAge('2026-05-25T10:00:00Z', refNow), 'vor 3 W.');
+assert.equal(context.formatSuggestionAge('2026-04-01T10:00:00Z', refNow), 'vor 3 M.');
+console.log('✓ Type-aware, slot-aware & search-all suggestions');
+
+// ── 2c. Default mode & set count inference ──
+const defaultsIndex = context.buildExerciseIndex([
+  { workoutId: 'd1', type: 'Push', name: 'Push', date: day(1), exercises: [
+    { name: 'Bankdrücken 75kg', mode: 'normal', sets: [S('Satz 1', 8, 8), S('Satz 2', 8, 8), S('Satz 3', 8, 9), S('Satz 4', 7, 9)] }
+  ] },
+  { workoutId: 'd2', type: 'Push', name: 'Push', date: day(4), exercises: [
+    { name: 'Bankdrücken 75kg', mode: 'normal', sets: [S('Satz 1', 8, 8), S('Satz 2', 8, 8), S('Satz 3', 8, 9)] }
+  ] },
+  { workoutId: 'd3', type: 'Push', name: 'Push', date: day(7), exercises: [
+    { name: 'Bankdrücken 72.5kg', mode: 'normal', sets: [S('Satz 1', 8, 8), S('Satz 2', 8, 8), S('Satz 3', 8, 9)] }
+  ] },
+  { workoutId: 'd4', type: 'Beine', name: 'Beine', date: day(2), exercises: [
+    { name: 'Ausfallschritte', mode: 'lr', sets: [
+      S('Satz 1 (links)', 10, 8), S('Satz 1 (rechts)', 10, 8),
+      S('Satz 2 (links)', 10, 8), S('Satz 2 (rechts)', 10, 8),
+      S('Satz 3 (links)', 10, 9), S('Satz 3 (rechts)', 10, 9)
+    ] }
+  ] },
+  { workoutId: 'd5', type: 'Beine', name: 'Beine', date: day(6), exercises: [
+    { name: 'Ausfallschritte', mode: 'lr', sets: [
+      S('Satz 1 (links)', 10, 8), S('Satz 1 (rechts)', 10, 8),
+      S('Satz 2 (links)', 10, 8), S('Satz 2 (rechts)', 10, 8)
+    ] }
+  ] }
+]);
+const benchDef = context.suggestExercises(defaultsIndex, '', { workoutType: 'Push' }).find(i => i.name === 'Bankdrücken');
+assert.equal(benchDef.defaultMode, 'normal');
+assert.equal(benchDef.defaultSets, 3, 'most frequent set count (3× twice vs 4× once) wins');
+
+const lungeDef = context.suggestExercises(defaultsIndex, '', { workoutType: 'Beine' }).find(i => i.name === 'Ausfallschritte');
+assert.equal(lungeDef.defaultMode, 'lr', 'infers Links/Rechts mode');
+assert.equal(lungeDef.defaultSets, 3, 'tied 3 pairs vs 2 pairs breaks in favor of most recent (3 pairs)');
+console.log('✓ Default mode and set count inference');
 
 // ── 3. Left/right order ──
 assert.equal(context.getLrOrder(), 'left');

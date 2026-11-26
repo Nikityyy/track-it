@@ -132,9 +132,9 @@ async function renderCreateWorkoutPage(params) {
 }
 
 /* ── Exercise name suggestions ──
- * A small list under the focused name field: what you did most in the last
- * month, narrowed down as you type. Tapping one fills the name as you last
- * wrote it (with its weight). */
+ * A small list under the focused name field: prioritizes exercises done in
+ * the selected workout type (weighted by slot position and recency), with
+ * other types below. Empty fields show the last month; typing searches all. */
 let _exerciseIndex = null;
 let _suggestFor = null;
 
@@ -142,13 +142,43 @@ function nameSuggestTarget(el) {
   return el && el.matches && el.matches('.exercise-name, .finisher-entry-name') ? el : null;
 }
 
+function suggestionMetaText(item) {
+  if (item.matchType === 'type') {
+    const age = formatSuggestionAge(item.typeLastDate || item.lastDate);
+    return age ? `${item.typeCount}× · ${age}` : `${item.typeCount}×`;
+  }
+  if (item.matchType === 'other') {
+    const tail = item.isOlder ? formatSuggestionAge(item.lastDate) : `${item.count}×`;
+    return item.primaryType ? `${item.primaryType} · ${tail}` : tail;
+  }
+  const age = formatSuggestionAge(item.lastDate);
+  return age ? `${item.count}× · ${age}` : `${item.count}×`;
+}
+
+function renderSuggestionItem(item, index, query) {
+  return `
+    <button type="button" class="name-suggest-item" role="option" data-index="${index}" data-value="${escapeHtml(item.latestName)}" data-mode="${escapeHtml(item.defaultMode || 'normal')}" data-sets="${Number(item.defaultSets) || 1}">
+      <span class="name-suggest-name">${highlightMatch(item.latestName, query)}</span>
+      <span class="name-suggest-meta">${escapeHtml(suggestionMetaText(item))}</span>
+    </button>`;
+}
+
 function showNameSuggestions(input) {
   if (!_exerciseIndex || !input.isConnected) return hideNameSuggestions();
   const others = Array.from(document.querySelectorAll('.exercise-name, .finisher-entry-name'))
     .filter(el => el !== input).map(el => el.value).filter(Boolean);
+  const workoutType = document.getElementById('workout-type')?.value || '';
+  const isFinisher = input.classList.contains('finisher-entry-name');
+  const card = input.closest(isFinisher ? '.finisher-entry' : '.exercise-card');
+  const parsedPos = card && card.dataset.index !== undefined ? Number(card.dataset.index) : NaN;
+  const position = Number.isInteger(parsedPos) && parsedPos >= 0 ? parsedPos : undefined;
+
   const items = suggestExercises(_exerciseIndex, input.value, {
     exclude: others,
-    limit: 5
+    limit: 5,
+    workoutType,
+    position,
+    source: isFinisher ? 'finisher' : 'exercise'
   });
   if (!items.length) return hideNameSuggestions();
 
@@ -163,12 +193,29 @@ function showNameSuggestions(input) {
     header.appendChild(panel);
   }
   _suggestFor = input;
-  const heading = input.value.trim() ? '' : '<div class="name-suggest-heading">Zuletzt trainiert</div>';
-  panel.innerHTML = heading + items.map((item, i) => `
-    <button type="button" class="name-suggest-item" role="option" data-index="${i}" data-value="${escapeHtml(item.latestName)}">
-      <span class="name-suggest-name">${highlightMatch(item.latestName, input.value)}</span>
-      <span class="name-suggest-meta">${item.count}×</span>
-    </button>`).join('');
+
+  const hasQuery = !!input.value.trim();
+  const typeItems = items.filter(i => i.matchType === 'type');
+  const otherItems = items.filter(i => i.matchType !== 'type');
+  let html = '';
+  let idx = 0;
+
+  if (typeItems.length) {
+    html += `<div class="name-suggest-heading">Passend zu ${escapeHtml(workoutType)}</div>`;
+    html += typeItems.map(item => renderSuggestionItem(item, idx++, input.value)).join('');
+  }
+  if (otherItems.length) {
+    if (typeItems.length) {
+      html += '<div class="name-suggest-heading name-suggest-heading-secondary">Weitere</div>';
+    } else if (workoutType && hasQuery) {
+      html += '<div class="name-suggest-heading">Aus anderen Workouts</div>';
+    } else if (!hasQuery) {
+      html += '<div class="name-suggest-heading">Zuletzt trainiert</div>';
+    }
+    html += otherItems.map(item => renderSuggestionItem(item, idx++, input.value)).join('');
+  }
+
+  panel.innerHTML = html;
   requestAnimationFrame(() => panel.classList.add('is-open'));
 }
 
@@ -177,11 +224,65 @@ function hideNameSuggestions() {
   document.getElementById('name-suggest')?.remove();
 }
 
+function canApplySuggestedSets(card) {
+  const setsContainer = getSetsContainer(card);
+  if (!setsContainer) return false;
+  if (typeof _activeRestTimer !== 'undefined' && _activeRestTimer && card.contains(_activeRestTimer.row)) return false;
+  const rows = Array.from(setsContainer.querySelectorAll('.set-row'));
+  if (!rows.length) return false;
+  return rows.every(row => {
+    if (row.classList.contains('skipped')) return false;
+    const reps = row.querySelector('.set-reps')?.value || '';
+    const rpe = row.querySelector('.set-rpe')?.value || '';
+    const brk = row.querySelector('.set-break')?.value || '0';
+    const note = row.querySelector('.set-note')?.value || '';
+    return (reps === '' || reps === '0') && rpe === '' && (brk === '' || brk === '0') && !note;
+  });
+}
+
+function applySuggestedSets(card, mode, setCount) {
+  const setsContainer = getSetsContainer(card);
+  if (!setsContainer) return;
+  const normalizedMode = mode === 'lr' ? 'lr' : 'normal';
+  const count = Math.max(1, Number(setCount) || 1);
+
+  card.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('btn-primary', b.dataset.mode === normalizedMode);
+    b.classList.toggle('btn-ghost', b.dataset.mode !== normalizedMode);
+  });
+
+  setsContainer.innerHTML = '';
+  if (normalizedMode === 'lr') {
+    const totalRows = count * 2;
+    for (let i = 0; i < count; i++) {
+      const firstSet = createEmptySet(i * 2, 'lr', i);
+      const secondSet = createEmptySet(i * 2 + 1, 'lr', i);
+      setsContainer.insertAdjacentHTML('beforeend', renderSetRow(firstSet, i * 2, totalRows <= 1));
+      setsContainer.insertAdjacentHTML('beforeend', renderSetRow(secondSet, i * 2 + 1, totalRows <= 1));
+    }
+  } else {
+    for (let i = 0; i < count; i++) {
+      setsContainer.insertAdjacentHTML('beforeend', renderSetRow(createEmptySet(i, 'normal'), i, count <= 1));
+    }
+  }
+
+  updateSetDeleteStates(card);
+  updateLrSwapButton(card);
+  updateLastSetPause();
+}
+
 function pickNameSuggestion(button) {
   const input = _suggestFor;
   if (!input) return;
   input.value = button.dataset.value;
+  const card = input.closest('.exercise-card, .finisher-entry');
+  const mode = button.dataset.mode === 'lr' ? 'lr' : 'normal';
+  const setCount = Math.max(1, parseInt(button.dataset.sets, 10) || 1);
+  if (card && canApplySuggestedSets(card)) {
+    applySuggestedSets(card, mode, setCount);
+  }
   input.dispatchEvent(new Event('input', { bubbles: true }));
+  if (typeof recordFormHistory === 'function') recordFormHistory();
   if (window.haptic) window.haptic.trigger(15);
   hideNameSuggestions();
   input.blur();
@@ -568,6 +669,7 @@ function bindFormEvents(workout) {
 
   document.getElementById('workout-type').addEventListener('change', () => {
     document.getElementById('workout-name').value = generateWorkoutName(document.getElementById('workout-type').value);
+    hideNameSuggestions();
     scheduleHistoryRecord();
   });
 
