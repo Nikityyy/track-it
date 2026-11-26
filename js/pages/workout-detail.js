@@ -48,8 +48,17 @@ async function renderWorkoutDetailPage(params) {
 
   const avgRpeVal = totalSets > 0 ? (totalRpe / totalSets).toFixed(1).replace('.0', '') : '-';
 
+  const plateConfig = getPlateConfig();
+  const hasPlates = plateConfig.plates.some(p => p.count > 0);
+
   // Exercises HTML
-  const exercisesHtml = workout.exercises.map(ex => `
+  const platePlans = solveWorkoutPlates(workout.exercises, plateConfig);
+  const exercisesHtml = workout.exercises.map((ex, idx) => {
+    const eqPicker = renderEquipmentSelector(ex.equipment, {
+      label: `Hanteltyp für ${ex.name || 'Übung'}`,
+      target: `data-workout-id="${escapeHtml(workout.workoutId)}" data-exercise-index="${idx}"`
+    });
+    return `
     <div class="card detail-exercise">
       <div class="detail-exercise-header">
         <h3 class="detail-exercise-name">${ex.name && exerciseKey(ex.name)
@@ -57,6 +66,8 @@ async function renderWorkoutDetailPage(params) {
           : escapeHtml(ex.name || 'Unbenannte Übung')}</h3>
         <span class="badge">${ex.mode === 'lr' ? 'Links/Rechts' : 'Normal'}</span>
       </div>
+      <div class="detail-equipment">${eqPicker}</div>
+      <div class="exercise-plate-slot">${renderPlateBarVisual(platePlans[idx], hasPlates)}</div>
       <div class="detail-sets">
         <div class="detail-sets-header">
           <span>Satz</span>
@@ -79,7 +90,8 @@ async function renderWorkoutDetailPage(params) {
         `).join('')}
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   // Finisher HTML
   let finisherHtml = '';
@@ -178,6 +190,17 @@ async function renderWorkoutDetailPage(params) {
   `;
 
   // Events
+  const detailPage = app.querySelector('.page-detail');
+  detailPage.addEventListener('click', (e) => {
+    handleEquipmentClick(e, (group, equipment) => {
+      workout.exercises[Number(group.dataset.exerciseIndex)].equipment = equipment;
+      const plans = solveWorkoutPlates(workout.exercises, plateConfig);
+      detailPage.querySelectorAll('.exercise-plate-slot').forEach((slot, i) => {
+        slot.innerHTML = renderPlateBarVisual(plans[i], hasPlates);
+      });
+    });
+  });
+
   document.getElementById('btn-back-workout')?.addEventListener('click', (e) => {
     e.preventDefault();
     Router.back('/history');

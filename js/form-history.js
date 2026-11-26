@@ -142,6 +142,7 @@ function restoreHistoryAt(index) {
 
   _isRestoringHistory = false;
   if (typeof updateLastSetPause === 'function') updateLastSetPause();
+  if (typeof updateAllExercisePlates === 'function') updateAllExercisePlates();
   updateUndoRedoButtons();
   if (typeof scheduleDraftSave === 'function') scheduleDraftSave();
 }
@@ -225,6 +226,8 @@ function tryRestoreValuesInPlace(workout) {
     if (exNameInput && exNameInput.value !== (ex.name || '')) {
       exNameInput.value = ex.name || '';
     }
+
+    applyEquipmentToCard(card, ex.equipment);
 
     const setRows = Array.from(card.querySelectorAll('.sets-container .set-row'));
     for (let si = 0; si < setRows.length; si++) {

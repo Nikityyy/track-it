@@ -46,7 +46,7 @@ function exerciseKey(name) {
  * session first. */
 function buildExerciseIndex(workouts) {
     const map = new Map();
-    const add = (rawName, sets, mode, workout, source, position) => {
+    const add = (rawName, sets, mode, equipment, workout, source, position) => {
         const name = String(rawName || '');
         const key = exerciseKey(name);
         if (!key) return;
@@ -58,6 +58,7 @@ function buildExerciseIndex(workouts) {
         item.count++;
         const type = workout.type || 'Andere';
         item.types[type] = (item.types[type] || 0) + 1;
+        const cleanEq = source === 'exercise' && equipment !== undefined ? normalizeEquipment(equipment) : undefined;
         item.sessions.push({
             workoutId: workout.workoutId,
             workoutType: type,
@@ -66,6 +67,7 @@ function buildExerciseIndex(workouts) {
             fullName: name.trim(),
             weight: exerciseWeight(name),
             mode: mode === 'lr' ? 'lr' : 'normal',
+            equipment: cleanEq,
             sets: Array.isArray(sets) ? sets : [],
             source,
             position: Number.isInteger(position) ? position : null
@@ -73,10 +75,10 @@ function buildExerciseIndex(workouts) {
     };
 
     for (const w of workouts || []) {
-        (w.exercises || []).forEach((ex, i) => add(ex.name, ex.sets, ex.mode, w, 'exercise', i));
+        (w.exercises || []).forEach((ex, i) => add(ex.name, ex.sets, ex.mode, ex.equipment, w, 'exercise', i));
         if (w.finisher && w.finisher.type === 'NORMAL') {
             (w.finisher.entries || []).forEach((entry, i) => {
-                if (entry.sets && entry.sets.length) add(entry.name, entry.sets, entry.mode, w, 'finisher', i);
+                if (entry.sets && entry.sets.length) add(entry.name, entry.sets, entry.mode, null, w, 'finisher', i);
             });
         }
     }
@@ -130,7 +132,7 @@ function buildExerciseIndex(workouts) {
  * recent sessions (newest-first). Uses the most frequent value over the last
  * 5 sessions, breaking ties in favor of the most recent session. */
 function inferExerciseDefaults(sessions) {
-    if (!sessions || !sessions.length) return { mode: 'normal', sets: 1 };
+    if (!sessions || !sessions.length) return { mode: 'normal', sets: 1, equipment: null };
     const recent = sessions.slice(0, 5);
     let normalCount = 0;
     let lrCount = 0;
@@ -142,9 +144,11 @@ function inferExerciseDefaults(sessions) {
         : normalCount > lrCount ? 'normal'
         : (recent[0].mode === 'lr' ? 'lr' : 'normal');
 
+    const bestEquipment = sessions.find(s => s.equipment !== undefined)?.equipment ?? null;
+
     const matching = recent.filter(s => (s.mode === 'lr' ? 'lr' : 'normal') === mode && Array.isArray(s.sets) && s.sets.length > 0);
     const sourceList = matching.length ? matching : recent.filter(s => Array.isArray(s.sets) && s.sets.length > 0);
-    if (!sourceList.length) return { mode, sets: 1 };
+    if (!sourceList.length) return { mode, sets: 1, equipment: bestEquipment };
 
     const counts = new Map();
     sourceList.forEach((s, idx) => {
@@ -166,7 +170,7 @@ function inferExerciseDefaults(sessions) {
             bestIdx = info.firstIdx;
         }
     }
-    return { mode, sets: bestSets };
+    return { mode, sets: bestSets, equipment: bestEquipment };
 }
 
 function scoreTypeMatch(typeStat, position, source) {
@@ -215,7 +219,7 @@ function suggestExercises(index, query, options = {}) {
         const startsWith = q ? item.key.startsWith(q) : false;
         const typeStat = workoutType && item.typeStats ? item.typeStats[workoutType] : null;
         if (typeStat && typeStat.count > 0) {
-            const defs = typeStat.defaults || item.defaults || { mode: 'normal', sets: 1 };
+            const defs = typeStat.defaults || item.defaults || { mode: 'normal', sets: 1, equipment: null };
             typeMatches.push({
                 ...item,
                 matchType: 'type',
@@ -223,12 +227,13 @@ function suggestExercises(index, query, options = {}) {
                 typeLastDate: typeStat.lastDate,
                 defaultMode: defs.mode,
                 defaultSets: defs.sets,
+                defaultEquipment: item.defaults?.equipment ?? null,
                 isOlder: !isRecent,
                 _startsWith: startsWith,
                 _score: scoreTypeMatch(typeStat, position, source)
             });
         } else {
-            const defs = item.defaults || { mode: 'normal', sets: 1 };
+            const defs = item.defaults || { mode: 'normal', sets: 1, equipment: null };
             otherMatches.push({
                 ...item,
                 matchType: workoutType ? 'other' : 'recent',
@@ -236,6 +241,7 @@ function suggestExercises(index, query, options = {}) {
                 typeLastDate: null,
                 defaultMode: defs.mode,
                 defaultSets: defs.sets,
+                defaultEquipment: defs.equipment || null,
                 isOlder: !isRecent,
                 _startsWith: startsWith
             });

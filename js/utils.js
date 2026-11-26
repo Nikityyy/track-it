@@ -197,6 +197,7 @@ function createEmptyExercise() {
         exerciseId: uuid(),
         name: '',
         mode: 'normal',
+        equipment: null,
         sets: [createEmptySet(0, 'normal')]
     };
 }
@@ -415,3 +416,7 @@ if (typeof window !== 'undefined') {
     window.Router = Router;
 }
 
+
+function normalizeEquipment(val) {
+    return val === 'barbell' || val === 'dumbbell' || val === 'dumbbells' ? val : null;
+}

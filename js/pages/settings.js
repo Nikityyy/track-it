@@ -58,6 +58,32 @@ async function renderSettingsPage() {
         </div>
       </section>
 
+      <!-- Weight Plates & Bars -->
+      <section class="settings-section" id="plate-settings-section">
+        <h3 class="section-title">Gewichte &amp; Scheiben</h3>
+        <p class="text-muted text-small type-hint">Trage die Gesamtzahl deiner Scheiben pro Gewicht ein.</p>
+        <div id="plate-config-list" class="plate-config-list"></div>
+        <div class="plate-config-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="add-plate-btn">${icon('plus', 14)} Scheibe hinzufügen</button>
+        </div>
+        <div class="settings-row plate-bar-weights-row">
+          <div class="settings-info">
+            <span class="settings-label">Leergewicht der Hanteln</span>
+            <span class="text-muted text-small">Trage das Gewicht ohne Scheiben ein, wenn du es beim Training mitzählst. Sonst lass das Feld bei 0 kg. Bei zwei Kurzhanteln gilt das Trainingsgewicht je Hantel.</span>
+          </div>
+          <div class="plate-bar-inputs">
+            <label class="plate-bar-field">
+              <span class="text-muted text-small">Langhantel (kg)</span>
+              <input type="number" step="0.25" min="0" class="input plate-bar-input" id="bar-weight-barbell" value="0" aria-label="Leergewicht der Langhantel in kg">
+            </label>
+            <label class="plate-bar-field">
+              <span class="text-muted text-small">Kurzhantel (kg)</span>
+              <input type="number" step="0.25" min="0" class="input plate-bar-input" id="bar-weight-dumbbell" value="0" aria-label="Leergewicht einer Kurzhantel in kg">
+            </label>
+          </div>
+        </div>
+      </section>
+
       <!-- Workout Types -->
       <section class="settings-section">
         <h3 class="section-title">Workout-Typen</h3>
@@ -135,6 +161,94 @@ async function renderSettingsPage() {
     // The library wraps the page on load, so switching needs a fresh start
     setTimeout(() => window.location.reload(), 700);
   });
+
+  // ── Weight Plates & Bar Config ──
+  if (typeof getPlateConfig === 'function') {
+    let plateConfig = getPlateConfig();
+    const listEl = document.getElementById('plate-config-list');
+    const barbellInput = document.getElementById('bar-weight-barbell');
+    const dumbbellInput = document.getElementById('bar-weight-dumbbell');
+    if (barbellInput) barbellInput.value = plateConfig.barWeights?.barbell ?? 0;
+    if (dumbbellInput) dumbbellInput.value = plateConfig.barWeights?.dumbbell ?? 0;
+
+    const persistPlates = () => {
+      const rows = Array.from(listEl.querySelectorAll('.plate-config-row'));
+      const plates = rows.map(r => ({
+        weight: parseFloat(String(r.querySelector('.plate-weight-input').value).replace(',', '.')),
+        count: parseInt(r.querySelector('.plate-count-input').value, 10) || 0
+      }));
+      plateConfig = savePlateConfig({
+        plates,
+        barWeights: {
+          barbell: parseFloat(String(barbellInput?.value || 0).replace(',', '.')) || 0,
+          dumbbell: parseFloat(String(dumbbellInput?.value || 0).replace(',', '.')) || 0
+        }
+      });
+    };
+
+    const renderPlateRows = () => {
+      listEl.innerHTML = plateConfig.plates.map(p => `
+        <div class="plate-config-row">
+          <div class="stepper stepper-sm plate-count-stepper">
+            <button type="button" class="stepper__btn plate-count-dec" aria-label="Weniger Scheiben">−</button>
+            <input type="number" min="0" step="1" class="stepper__input plate-count-input" value="${p.count}" aria-label="Anzahl Scheiben">
+            <button type="button" class="stepper__btn plate-count-inc" aria-label="Mehr Scheiben">+</button>
+          </div>
+          <span class="plate-times">×</span>
+          <div class="plate-weight-wrap">
+            <input type="number" step="0.25" min="0.25" class="input plate-weight-input" value="${p.weight}" aria-label="Scheibengewicht in kg">
+            <span class="plate-unit">kg</span>
+          </div>
+          <button type="button" class="btn-icon btn-danger-icon plate-remove-btn" aria-label="Scheibe entfernen">${icon('trash', 15)}</button>
+        </div>
+      `).join('');
+    };
+
+    renderPlateRows();
+
+    listEl.addEventListener('click', (e) => {
+      const row = e.target.closest('.plate-config-row');
+      if (!row) return;
+      if (e.target.closest('.plate-remove-btn')) {
+        if (window.haptic) window.haptic.trigger(20);
+        row.remove();
+        persistPlates();
+        renderPlateRows();
+        showToast('Scheibe entfernt');
+        return;
+      }
+      const inc = e.target.closest('.plate-count-inc');
+      const dec = e.target.closest('.plate-count-dec');
+      if (inc || dec) {
+        if (window.haptic) window.haptic.trigger(20);
+        const inp = row.querySelector('.plate-count-input');
+        const cur = parseInt(inp.value, 10) || 0;
+        inp.value = inc ? cur + 1 : Math.max(0, cur - 1);
+        persistPlates();
+      }
+    });
+
+    listEl.addEventListener('change', persistPlates);
+
+    document.getElementById('add-plate-btn')?.addEventListener('click', () => {
+      if (window.haptic) window.haptic.trigger(20);
+      let weight = 5;
+      while (plateConfig.plates.some(plate => plate.weight === weight)) weight += 0.25;
+      plateConfig.plates.push({ weight, count: 2 });
+      plateConfig = savePlateConfig(plateConfig);
+      renderPlateRows();
+      const input = Array.from(listEl.querySelectorAll('.plate-weight-input')).find(el => Number(el.value) === weight);
+      input?.focus();
+      input?.select();
+    });
+
+    [barbellInput, dumbbellInput].forEach(el => {
+      el?.addEventListener('change', () => {
+        persistPlates();
+        showToast('Stangen-Gewicht gespeichert');
+      });
+    });
+  }
 
   // ── Workout types: rename, add, delete, drag to reorder ──
   const typeList = document.getElementById('type-list');

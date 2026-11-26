@@ -114,6 +114,28 @@ async function saveWorkout(workout) {
   await dbPut(STORES.workouts, workout);
 }
 
+async function updateWorkoutEquipment(workoutId, exerciseIndex, equipment) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.workouts, 'readwrite');
+    const store = tx.objectStore(STORES.workouts);
+    const request = store.get(workoutId);
+    request.onsuccess = () => {
+      const workout = request.result;
+      const exercise = workout?.exercises?.[exerciseIndex];
+      if (!exercise) {
+        tx.abort();
+        return;
+      }
+      exercise.equipment = normalizeEquipment(equipment);
+      workout.updatedAt = new Date().toISOString();
+      store.put(workout);
+    };
+    tx.oncomplete = resolve;
+    tx.onabort = () => reject(tx.error || new Error('Übung nicht gefunden'));
+  });
+}
+
 async function getWorkout(id) {
   const workout = await dbGet(STORES.workouts, id);
   if (workout) migrateWorkout(workout);
@@ -311,6 +333,7 @@ function migrateWorkout(w) {
   for (const ex of w.exercises) {
     if (!ex.exerciseId) ex.exerciseId = uuid();
     if (!ex.mode) ex.mode = 'normal';
+    if (ex.equipment !== undefined && ex.equipment !== null && !normalizeEquipment(ex.equipment)) delete ex.equipment;
     if (!Array.isArray(ex.sets) || ex.sets.length === 0) ex.sets = [createEmptySet(0, ex.mode)];
     for (let i = 0; i < ex.sets.length; i++) {
       migrateSet(ex.sets[i], i, ex.mode);
@@ -457,6 +480,7 @@ function normalizeExercises(exercises) {
       exerciseId: String(ex.exerciseId || uuid()),
       name: String(ex.name || ''),
       mode,
+      ...(ex.equipment !== undefined ? { equipment: normalizeEquipment(ex.equipment) } : {}),
       sets: sets.map((set, i) => normalizeSet(set, i, mode))
     };
   });

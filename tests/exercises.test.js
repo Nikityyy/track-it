@@ -153,14 +153,14 @@ const defaultsIndex = context.buildExerciseIndex([
     { name: 'Bankdrücken 72.5kg', mode: 'normal', sets: [S('Satz 1', 8, 8), S('Satz 2', 8, 8), S('Satz 3', 8, 9)] }
   ] },
   { workoutId: 'd4', type: 'Beine', name: 'Beine', date: day(2), exercises: [
-    { name: 'Ausfallschritte', mode: 'lr', sets: [
+    { name: 'Ausfallschritte', mode: 'lr', equipment: 'dumbbells', sets: [
       S('Satz 1 (links)', 10, 8), S('Satz 1 (rechts)', 10, 8),
       S('Satz 2 (links)', 10, 8), S('Satz 2 (rechts)', 10, 8),
       S('Satz 3 (links)', 10, 9), S('Satz 3 (rechts)', 10, 9)
     ] }
   ] },
   { workoutId: 'd5', type: 'Beine', name: 'Beine', date: day(6), exercises: [
-    { name: 'Ausfallschritte', mode: 'lr', sets: [
+    { name: 'Ausfallschritte', mode: 'lr', equipment: 'dumbbells', sets: [
       S('Satz 1 (links)', 10, 8), S('Satz 1 (rechts)', 10, 8),
       S('Satz 2 (links)', 10, 8), S('Satz 2 (rechts)', 10, 8)
     ] }
@@ -169,11 +169,13 @@ const defaultsIndex = context.buildExerciseIndex([
 const benchDef = context.suggestExercises(defaultsIndex, '', { workoutType: 'Push' }).find(i => i.name === 'Bankdrücken');
 assert.equal(benchDef.defaultMode, 'normal');
 assert.equal(benchDef.defaultSets, 3, 'most frequent set count (3× twice vs 4× once) wins');
+assert.equal(benchDef.defaultEquipment, null);
 
 const lungeDef = context.suggestExercises(defaultsIndex, '', { workoutType: 'Beine' }).find(i => i.name === 'Ausfallschritte');
 assert.equal(lungeDef.defaultMode, 'lr', 'infers Links/Rechts mode');
 assert.equal(lungeDef.defaultSets, 3, 'tied 3 pairs vs 2 pairs breaks in favor of most recent (3 pairs)');
-console.log('✓ Default mode and set count inference');
+assert.equal(lungeDef.defaultEquipment, 'dumbbells', 'remembers equipment type (2 Kurzhanteln)');
+console.log('✓ Default mode, equipment and set count inference');
 
 // ── 3. Left/right order ──
 assert.equal(context.getLrOrder(), 'left');

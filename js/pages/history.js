@@ -102,20 +102,24 @@ async function renderHistoryPage() {
     return items.map(item => {
       const latest = item.sessions[0];
       const weight = latest && latest.weight ? `${String(latest.weight.value).replace('.', ',')} ${latest.weight.unit}` : '';
+      const session = item.sessions.find(entry => entry.source === 'exercise');
       return `
-        <a href="#/exercise/${encodeURIComponent(item.name)}" class="card workout-card-v2 exercise-row">
+        <div class="card workout-card-v2 exercise-row">
           <div class="workout-card-body">
-            <div class="workout-card-top">
+            <a href="#/exercise/${encodeURIComponent(item.name)}" class="workout-card-top exercise-row-link">
               <span class="workout-card-name">${escapeHtml(item.name)}</span>
               ${weight ? `<span class="exercise-row-weight">${escapeHtml(weight)}</span>` : ''}
-            </div>
-            <div class="workout-card-chips">
-              <span class="chip">${item.count}× trainiert</span>
-              <span class="chip">zuletzt ${formatDateDE(item.lastDate)}</span>
+              <span class="exercise-row-chevron" aria-hidden="true">${icon('chevronRight', 18)}</span>
+            </a>
+            <div class="exercise-row-footer">
+              <span class="text-small text-muted">${item.count}× · ${formatDateDE(session?.date || item.lastDate)}</span>
+              ${session ? renderEquipmentSelector(session.equipment, {
+                label: `Hanteltyp für ${item.name} vom ${formatDateDE(session.date)}`,
+                target: `data-workout-id="${escapeHtml(session.workoutId)}" data-exercise-index="${session.position}"`
+              }) : ''}
             </div>
           </div>
-          <span class="exercise-row-chevron" aria-hidden="true">${icon('chevronRight', 18)}</span>
-        </a>
+        </div>
       `;
     }).join('');
   }
@@ -211,7 +215,15 @@ async function renderHistoryPage() {
     app.querySelectorAll('.segmented-option').forEach(c => c.setAttribute('aria-selected', String(c.dataset.view === state.view)));
   }
 
-  app.querySelector('.page-history').addEventListener('click', (e) => {
+  app.querySelector('.page-history').addEventListener('click', async (e) => {
+    if (e.target.closest('.equip-btn')) {
+      await handleEquipmentClick(e, (group, equipment) => {
+        const workout = workouts.find(w => w.workoutId === group.dataset.workoutId);
+        workout.exercises[Number(group.dataset.exerciseIndex)].equipment = equipment;
+      });
+      return;
+    }
+
     const chip = e.target.closest('.filter-chip');
     const tab = e.target.closest('.segmented-option');
     if (!chip && !tab) return;

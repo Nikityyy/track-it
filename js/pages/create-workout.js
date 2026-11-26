@@ -157,7 +157,7 @@ function suggestionMetaText(item) {
 
 function renderSuggestionItem(item, index, query) {
   return `
-    <button type="button" class="name-suggest-item" role="option" data-index="${index}" data-value="${escapeHtml(item.latestName)}" data-mode="${escapeHtml(item.defaultMode || 'normal')}" data-sets="${Number(item.defaultSets) || 1}">
+    <button type="button" class="name-suggest-item" role="option" data-index="${index}" data-value="${escapeHtml(item.latestName)}" data-mode="${escapeHtml(item.defaultMode || 'normal')}" data-sets="${Number(item.defaultSets) || 1}" data-equipment="${escapeHtml(item.defaultEquipment || '')}">
       <span class="name-suggest-name">${highlightMatch(item.latestName, query)}</span>
       <span class="name-suggest-meta">${escapeHtml(suggestionMetaText(item))}</span>
     </button>`;
@@ -271,6 +271,30 @@ function applySuggestedSets(card, mode, setCount) {
   updateLastSetPause();
 }
 
+function applyEquipmentToCard(card, equipment) {
+  if (!card) return;
+  const clean = normalizeEquipment(equipment);
+  card.dataset.equipment = clean || '';
+  syncEquipmentButtons(card, clean);
+}
+
+function updateAllExercisePlates() {
+  const cards = Array.from(document.querySelectorAll('#exercises-container .exercise-card'));
+  if (!cards.length) return;
+  const exercises = cards.map(card => ({
+    name: card.querySelector('.exercise-name')?.value || '',
+    equipment: card.dataset.equipment || null
+  }));
+  const config = getPlateConfig();
+  const hasPlates = config.plates.some(p => p.count > 0);
+  const plans = solveWorkoutPlates(exercises, config);
+  cards.forEach((card, i) => {
+    const slot = card.querySelector('.exercise-plate-slot');
+    if (!slot) return;
+    slot.innerHTML = renderPlateBarVisual(plans[i], hasPlates);
+  });
+}
+
 function pickNameSuggestion(button) {
   const input = _suggestFor;
   if (!input) return;
@@ -278,8 +302,15 @@ function pickNameSuggestion(button) {
   const card = input.closest('.exercise-card, .finisher-entry');
   const mode = button.dataset.mode === 'lr' ? 'lr' : 'normal';
   const setCount = Math.max(1, parseInt(button.dataset.sets, 10) || 1);
-  if (card && canApplySuggestedSets(card)) {
-    applySuggestedSets(card, mode, setCount);
+  const eq = button.dataset.equipment || '';
+  if (card) {
+    const untouched = canApplySuggestedSets(card);
+    if (card.classList.contains('exercise-card') && untouched && !card.dataset.equipmentChosen) {
+      applyEquipmentToCard(card, eq);
+    }
+    if (untouched) {
+      applySuggestedSets(card, mode, setCount);
+    }
   }
   input.dispatchEvent(new Event('input', { bubbles: true }));
   if (typeof recordFormHistory === 'function') recordFormHistory();
@@ -329,6 +360,7 @@ function buildRepeatWorkout(source) {
         exerciseId: uuid(),
         name: ex.name || '',
         mode: ex.mode === 'lr' ? 'lr' : 'normal',
+        equipment: ex.equipment || null,
         sets: (ex.sets && ex.sets.length ? ex.sets : [null]).map((set, i) => emptySet(set, i, ex.mode))
       }))
       : base.exercises,
@@ -512,6 +544,7 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
   updateExerciseIndices();
   updateSetDeleteStates();
   updateLastSetPause();
+  updateAllExercisePlates();
   updateUndoRedoButtons();
   if (typeof resumeRestTimer === 'function') resumeRestTimer(options.restTimer !== undefined ? options.restTimer : getRestTimerState());
 }
@@ -519,8 +552,9 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
 function renderExerciseCard(exercise, index, totalCount = 1) {
   const isTop = index === 0;
   const isBottom = index === totalCount - 1;
+  const eq = normalizeEquipment(exercise.equipment);
   return `
-    <div class="card exercise-card" data-exercise-id="${escapeHtml(exercise.exerciseId)}" data-index="${index}">
+    <div class="card exercise-card" data-exercise-id="${escapeHtml(exercise.exerciseId)}" data-index="${index}" data-equipment="${escapeHtml(eq || '')}">
       <div class="exercise-card-header">
         <input type="text" class="input exercise-name" value="${escapeHtml(exercise.name)}" placeholder="Übungsname" aria-label="Übungsname">
         <button type="button" class="btn-icon exercise-move-up${isTop ? ' disabled' : ''}" aria-label="Nach oben verschieben" title="Nach oben"${isTop ? ' disabled aria-disabled="true"' : ''}>${icon('chevronUp', 16)}</button>
@@ -531,7 +565,9 @@ function renderExerciseCard(exercise, index, totalCount = 1) {
         <button type="button" class="btn btn-sm ${exercise.mode === 'normal' ? 'btn-primary' : 'btn-ghost'} mode-btn" data-mode="normal">Normal</button>
         <button type="button" class="btn btn-sm ${exercise.mode === 'lr' ? 'btn-primary' : 'btn-ghost'} mode-btn" data-mode="lr">Links/Rechts</button>
         ${renderLrSwapButton(exercise.sets)}
+        ${renderEquipmentSelector(eq)}
       </div>
+      <div class="exercise-plate-slot"></div>
       ${renderSetsHeader()}
       <div class="sets-container">${exercise.sets.map((set, si) => renderSetRow(set, si, exercise.sets.length <= 1)).join('')}</div>
       <button type="button" class="btn btn-ghost btn-sm w-full mt-2 add-set">${icon('plus', 14)} Satz hinzufügen</button>
@@ -676,6 +712,7 @@ function bindFormEvents(workout) {
   form.addEventListener('input', (e) => {
     scheduleHistoryRecord();
     scheduleDraftSave();
+    if (e.target.classList?.contains('exercise-name')) updateAllExercisePlates();
     if (nameSuggestTarget(e.target) && e.isTrusted !== false && document.activeElement === e.target) showNameSuggestions(e.target);
   });
   form.addEventListener('focusin', (e) => {
@@ -704,6 +741,14 @@ function bindFormEvents(workout) {
     if (item && _suggestFor) pickNameSuggestion(item);
   }, true);
   form.addEventListener('change', (e) => {
+    if (e.target.matches('.exercise-name') && form.dataset.isEdit !== 'true') {
+      const card = e.target.closest('.exercise-card');
+      const equipment = _exerciseIndex?.get(exerciseKey(e.target.value))?.defaults.equipment;
+      if (equipment && !card.dataset.equipment && !card.dataset.equipmentChosen && canApplySuggestedSets(card)) {
+        applyEquipmentToCard(card, equipment);
+        updateAllExercisePlates();
+      }
+    }
     clampNumberInput(e.target);
     scheduleHistoryRecord();
     scheduleDraftSave();
@@ -771,6 +816,7 @@ function bindFormEvents(workout) {
         window._hasUnsavedChanges = true;
         if (window.haptic) window.haptic.trigger(20);
         updateExerciseIndices();
+        updateAllExercisePlates();
         recordFormHistory();
       }
       return;
@@ -784,6 +830,7 @@ function bindFormEvents(workout) {
         window._hasUnsavedChanges = true;
         if (window.haptic) window.haptic.trigger(20);
         updateExerciseIndices();
+        updateAllExercisePlates();
         recordFormHistory();
       }
       return;
@@ -795,11 +842,24 @@ function bindFormEvents(workout) {
         if (container.children.length > 1) {
           card.remove();
           updateExerciseIndices();
+          updateAllExercisePlates();
           recordFormHistory();
         } else {
           showToast('Mindestens eine Übung erforderlich');
         }
       });
+      return;
+    }
+
+    const eqBtn = e.target.closest('.equip-btn');
+    if (eqBtn) {
+      const nextEq = card.dataset.equipment === eqBtn.dataset.equipment ? '' : eqBtn.dataset.equipment;
+      card.dataset.equipmentChosen = 'true';
+      applyEquipmentToCard(card, nextEq);
+      updateAllExercisePlates();
+      window._hasUnsavedChanges = true;
+      if (window.haptic) window.haptic.trigger('selection');
+      recordFormHistory();
       return;
     }
 
@@ -1320,6 +1380,7 @@ function collectWorkoutFromForm() {
     exerciseId: card.dataset.exerciseId || uuid(),
     name: card.querySelector('.exercise-name').value,
     mode: card.querySelector('.mode-btn.btn-primary')?.dataset.mode || 'normal',
+    equipment: normalizeEquipment(card.dataset.equipment),
     sets: Array.from(card.querySelectorAll('.sets-container .set-row')).map(collectSetFromRow)
   }));
 
