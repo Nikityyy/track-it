@@ -194,7 +194,7 @@ function freeIdlePlates(loads, activeSlots, inventory) {
             return { ...plate, count: plate.count - pairs };
         }).filter(plate => plate.count > 0);
     });
-    return removed;
+    return { removed, used };
 }
 
 function comparePlateStates(a, b) {
@@ -260,14 +260,14 @@ function solveWorkoutPlates(exercises, config = getPlateConfig()) {
                     const deltas = slots.map(slot => countAddedRemoved(loads[slot], combo));
                     slots.forEach(slot => { loads[slot] = combo; });
 
-                    const removed = freeIdlePlates(loads, slots, inv);
+                    const { removed, used } = freeIdlePlates(loads, slots, inv);
                     const moves = deltas.reduce((total, d) => total + (d.added + d.removed) * 2, removed);
                     const previousLoad = slots.some(slot => state.loads[slot].length > 0);
                     const uniformChange = deltas.every(d => d.added === deltas[0].added && d.removed === deltas[0].removed);
                     const delta = previousLoad && uniformChange ? deltas[0] : null;
                     const candidate = {
                         loads,
-                        choices: state.choices.concat([{ combo, delta, parallelOk: removed === 0 }]),
+                        choices: state.choices.concat([{ combo, delta, parallelOk: removed === 0, loadedPlates: used }]),
                         conflicts: state.conflicts + (removed > 0 ? 1 : 0),
                         moves: state.moves + moves
                     };
@@ -286,13 +286,39 @@ function solveWorkoutPlates(exercises, config = getPlateConfig()) {
     }
 
     active.forEach((plan, i) => {
-        const { combo, delta, parallelOk } = states[0].choices[i];
+        const { combo, delta, parallelOk, loadedPlates } = states[0].choices[i];
+        plan.loadedPlates = loadedPlates;
         plan.perSide = combo;
         plan.swaps = delta;
         plan.parallelOk = parallelOk;
     });
 
     return plans;
+}
+
+/* Count the largest simultaneous load of each weight along the chosen plan. */
+function summarizeWorkoutPlates(plans) {
+    const peak = new Map();
+    for (const plan of plans) {
+        if (!plan) continue;
+        for (const [weight, count] of plan.loadedPlates) {
+            if (count > (peak.get(weight) || 0)) peak.set(weight, count);
+        }
+    }
+    return Array.from(peak, ([weight, count]) => ({ weight, count }))
+        .sort((a, b) => b.weight - a.weight);
+}
+
+function renderWorkoutPlateChecklist(plans) {
+    const items = summarizeWorkoutPlates(plans);
+    if (!items.length) return '';
+    return `
+        <h4 class="plate-checklist-title">Scheiben bereitlegen</h4>
+        <ul class="plate-checklist-items" role="list">
+            ${items.map(({ weight, count }) => `
+                <li><strong>${count} ×</strong> ${formatWeightDE(weight)} kg</li>
+            `).join('')}
+        </ul>`;
 }
 
 function renderEquipmentSelector(selected, { label = 'Hanteltyp', target = '' } = {}) {

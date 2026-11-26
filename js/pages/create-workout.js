@@ -279,8 +279,9 @@ function applyEquipmentToCard(card, equipment) {
 }
 
 function updateAllExercisePlates() {
+  const checklist = document.getElementById('workout-plate-checklist');
+  if (!checklist) return;
   const cards = Array.from(document.querySelectorAll('#exercises-container .exercise-card'));
-  if (!cards.length) return;
   const exercises = cards.map(card => ({
     name: card.querySelector('.exercise-name')?.value || '',
     equipment: card.dataset.equipment || null
@@ -288,6 +289,7 @@ function updateAllExercisePlates() {
   const config = getPlateConfig();
   const hasPlates = config.plates.some(p => p.count > 0);
   const plans = solveWorkoutPlates(exercises, config);
+  checklist.innerHTML = renderWorkoutPlateChecklist(plans);
   cards.forEach((card, i) => {
     const slot = card.querySelector('.exercise-plate-slot');
     if (!slot) return;
@@ -503,6 +505,7 @@ function renderWorkoutForm(workout, types, isEdit, options = {}) {
             <h3 class="section-title">Übungen</h3>
             <button type="button" class="btn btn-ghost btn-sm" id="add-exercise">${icon('plus', 14)} Übung hinzufügen</button>
           </div>
+          <div id="workout-plate-checklist" class="plate-checklist"></div>
           <div id="exercises-container">
             ${workout.exercises.map((ex, i) => renderExerciseCard(ex, i, workout.exercises.length)).join('')}
           </div>

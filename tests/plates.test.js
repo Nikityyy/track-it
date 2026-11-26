@@ -120,6 +120,22 @@ assert.equal(partialUnload[1].parallelOk, false, 'conflict calls out the need to
 assert.equal(partialUnload[2].parallelOk, true, 'untouched 1.5 kg plates can stay loaded');
 assert.equal(partialUnload[2].swaps.added + partialUnload[2].swaps.removed, 0);
 
+// The checklist counts physical plates across all handles at each step.
+const checklistCounts = plans => JSON.stringify(context.summarizeWorkoutPlates(plans));
+assert.equal(checklistCounts(workoutPlans), JSON.stringify([
+  { weight: 2.5, count: 4 }, { weight: 2, count: 4 },
+  { weight: 1.5, count: 4 }, { weight: 1.25, count: 4 }
+]));
+assert.equal(checklistCounts(sharedHandles), JSON.stringify([{ weight: 2.5, count: 4 }]));
+assert.equal(checklistCounts(partialUnload), JSON.stringify([{ weight: 2.5, count: 4 }, { weight: 1.5, count: 2 }]));
+
+const simultaneous = context.solveWorkoutPlates([
+  { name: 'Rudern 5kg', equipment: 'barbell' },
+  { name: 'Curls 5kg', equipment: 'dumbbell' }
+], { plates: [{ weight: 2.5, count: 4 }] });
+assert.equal(checklistCounts(simultaneous), JSON.stringify([{ weight: 2.5, count: 4 }]));
+assert.equal(context.renderWorkoutPlateChecklist([null, underBar]), '');
+
 // ── 5. Visual HTML helpers ──
 const eqHtml = context.renderEquipmentSelector('dumbbells');
 assert.ok(eqHtml.includes('data-equipment="barbell"') && eqHtml.includes('data-equipment="dumbbells"'));
